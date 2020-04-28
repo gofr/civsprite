@@ -28,6 +28,8 @@ continuous - True for all frames in a continuously repeating loop
 """
 
 
+# TODO: image_index is always a direct one-to-one mapping. Get rid of it here
+# and in all file format implementations.
 class Sprite(object):
     def __init__(self, images, image_index, frames=None, animation_index=None):
         """Create a Sprite object.
