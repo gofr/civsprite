@@ -102,6 +102,9 @@ def _append_animation_frame_xml(node, frame, id):
     node.appendChild(frame_node)
 
 
+# BUG: Either this method or sprite.format.spr._image_object_to_sprite_image
+# is broken. Images without masks don't survive a PNG -> SPR -> PNG conversion.
+# They become blank.
 def _xml_source_to_image_object(image_source_node, xml_base_dir):
     """Return an RGBA PIL Image object for a given XML <source> element.
 
