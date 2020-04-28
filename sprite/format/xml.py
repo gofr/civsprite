@@ -49,9 +49,9 @@ def _xml_id(basename, number):
 def _path_to_url(path, rect=None):
     """Return URL for a file path and optional (x, y, width, height) tuple."""
 
-    url_path = urllib.request.pathname2url(os.path.abspath(path))
+    url_path = urllib.request.pathname2url(path)
     fragment = '='.join(['xywh', ','.join(map(str, rect))]) if rect else None
-    return urllib.parse.urlunsplit(('file', None, url_path, None, fragment))
+    return urllib.parse.urlunsplit(('', None, url_path, None, fragment))
 
 
 def _url_to_path(url):
@@ -102,8 +102,10 @@ def _append_animation_frame_xml(node, frame, id):
     node.appendChild(frame_node)
 
 
-def _xml_source_to_image_object(image_source_node):
+def _xml_source_to_image_object(image_source_node, xml_base_dir):
     """Return an RGBA PIL Image object for a given XML <source> element.
+
+    Relative file paths in the XML are resolved relative to xml_base_dir.
 
     The alpha channel is used for the civilization color mask (0=no, 255=yes).
     """
@@ -116,6 +118,7 @@ def _xml_source_to_image_object(image_source_node):
     image = None
     if image_url:
         (image_path, image_xywh) = _url_to_path(image_url)
+        image_path = os.path.join(xml_base_dir, image_path)
         if os.path.isfile(image_path):
             image = Image.open(image_path)
         else:
@@ -134,6 +137,7 @@ def _xml_source_to_image_object(image_source_node):
     mask = 0
     if mask_url:
         (mask_path, mask_xywh) = _url_to_path(mask_url)
+        mask_path = os.path.join(xml_base_dir, mask_path)
         if os.path.isfile(mask_path):
             # TODO: Should probably warn if the URL doesn't resolve.
             mask = Image.open(mask_path)
@@ -192,6 +196,7 @@ def load(path):
     # premature optimization anyway. I can do it the simple way first and
     # then see if it's all too slow or not.
 
+    abs_base_dir = os.path.dirname(os.path.abspath(path))
     with open(path, 'r') as xml_file:
         xml_source = re.sub(r'\A.*?(?=<sprites>)', _DOCTYPE, xml_file.read(),
                             flags=re.DOTALL | re.MULTILINE)
@@ -212,7 +217,8 @@ def load(path):
             for a in animation_nodes]
         frames = [_animation_frame(f, image_nodes) for f in frame_nodes]
 
-    images = [_xml_source_to_image_object(s) for s in source_nodes]
+    images = [
+        _xml_source_to_image_object(s, abs_base_dir) for s in source_nodes]
     image_index = [
         source_nodes.index(doc.getElementById(i.getAttribute('ref')))
         for i in image_nodes]
@@ -223,32 +229,33 @@ def load(path):
 def save(sprite, path):
     """Save sprite.objects.Sprite object 'sprite' to .xml file 'path'
 
-    Also stores all the used images in individual .png files in the current
-    directory.
+    Also stores all the images in individual .png files in the same directory
+    as the XML file.
     """
 
+    abs_path = os.path.abspath(path)
+    abs_base_dir = os.path.dirname(abs_path)
     doc = xml.dom.minidom.Document()
     root = doc.createElement('sprites')
     doc.appendChild(root)
 
     if sprite.image_index is not None:
         for i, image in enumerate(sprite.images):
-            image_file_name = 'sprite-{}.png'.format(i)
-            # XXX: Images should be stored in the same dir (or something) as
-            # the xml file. Saving them in the working directory is a bug.
-            image.convert('RGB').save(image_file_name)
+            rel_image_file_path = 'sprite-{}.png'.format(i)
+            image.convert('RGB').save(
+                os.path.join(abs_base_dir, rel_image_file_path))
 
             tag = doc.createElement('source')
             tag.setAttribute('id', _xml_id('img', i))
-            tag.setAttribute('src', _path_to_url(image_file_name))
+            tag.setAttribute('src', _path_to_url(rel_image_file_path))
 
             mask_data = image.getdata(3)
             if 255 in mask_data:
-                mask_file_name = 'sprite-{}-mask.png'.format(i)
+                rel_mask_file_path = 'sprite-{}-mask.png'.format(i)
                 mask = Image.new('1', image.size, None)
                 mask.putdata(mask_data)
-                mask.save(mask_file_name)
-                tag.setAttribute('mask', _path_to_url(mask_file_name))
+                mask.save(os.path.join(abs_base_dir, rel_mask_file_path))
+                tag.setAttribute('mask', _path_to_url(rel_mask_file_path))
 
             root.appendChild(tag)
 
@@ -268,5 +275,5 @@ def save(sprite, path):
                 tag.setAttribute('start', _xml_id('frame', offset))
                 root.appendChild(tag)
 
-    with open(path, 'w') as f:
+    with open(abs_path, 'w') as f:
         doc.writexml(f, addindent='    ', newl='\n')
