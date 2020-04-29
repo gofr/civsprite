@@ -83,8 +83,9 @@ def _image_object_to_sprite_image(image):
     """
 
     transparent = (255, 0, 255, 0)  # magenta without color mask
-    blank_image = Image.new('RGBA', image.size, transparent)
-    bounding_box = ImageChops.difference(image, blank_image).getbbox()
+    blank_image = Image.new('RGB', image.size, transparent)
+    bounding_box = \
+        ImageChops.difference(image.convert('RGB'), blank_image).getbbox()
     (bbox_left, bbox_top, bbox_right, bbox_bottom) = \
         bounding_box or (0, 0, 0, 0)
     image_data = b''
