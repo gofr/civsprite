@@ -168,7 +168,7 @@ def load(path):
             for index, value in enumerate(anim_data):
                 if (index * 4) + animation_offset == first_frame:
                     animation_index = anim_data[0:index]
-                    frames = map(_int_to_frame, anim_data[index:])
+                    frames = list(map(_int_to_frame, anim_data[index:]))
                     break
                 elif value < first_frame:
                     first_frame = value
