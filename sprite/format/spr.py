@@ -127,7 +127,7 @@ def _image_object_to_sprite_image(image):
 def _int_to_frame(frame):
     """Return a sprite.objects.Frame object for an integer frame value."""
 
-    image_index = frame & 1023
+    image = frame & 1023
     transparency = (frame >> 10) & 7
     start = bool((frame >> 13) & 1)
     end_loop = bool((frame >> 14) & 1)
@@ -135,14 +135,14 @@ def _int_to_frame(frame):
     end = bool((frame >> 24) & 1)
     continuous = bool((frame >> 25) & 1)
 
-    return sprite.objects.Frame(image_index, transparency,
-                                start, end_loop, mirror, end, continuous)
+    return sprite.objects.Frame(
+        image, transparency, start, end_loop, mirror, end, continuous)
 
 
 def _frame_to_int(frame):
     """Return an integer frame value for a sprite.objects.Frame object."""
 
-    return ((frame.image_index & 1023) | ((frame.transparency & 7) << 10) |
+    return ((frame.image & 1023) | ((frame.transparency & 7) << 10) |
             (frame.start << 13) | (frame.end_loop << 14) |
             (frame.mirror << 15) | (0x06 << 16) | (frame.end << 24) |
             (frame.continuous << 25))
@@ -187,19 +187,13 @@ def load(path):
             assert len(image_index) <= 1024
 
         images = []
-        image_offset_map = {}
         while True:
             image_offset = spr_file.tell() - images_offset
             if image_offset == image_index[-1]:  # final index points to EOF
-                image_index.pop()
                 break
-
-            image_offset_map[image_offset] = len(images)
             images.append(_read_spr_image(spr_file))
 
-        image_index = [image_offset_map[x] for x in image_index]
-
-    return sprite.objects.Sprite(images, image_index, frames, animation_index)
+    return sprite.objects.Sprite(images, frames, animation_index)
 
 
 def save(sprite, path):
@@ -215,7 +209,7 @@ def save(sprite, path):
         animations_offset = 0
         image_index_offset = header_struct.size
 
-    first_image_offset = image_index_offset + 4 * (len(sprite.image_index) + 1)
+    first_image_offset = image_index_offset + 4 * (len(sprite.images) + 1)
 
     with open(path, 'wb') as spr_file:
         spr_file.write(header_struct.pack(
@@ -234,15 +228,13 @@ def save(sprite, path):
         # Skip past image index for now:
         spr_file.seek(first_image_offset)
 
-        image_offsets = [0]
+        image_index = [0]
         for img in sprite.images:
             image_data = _image_object_to_sprite_image(img)
-            image_offsets.append(image_offsets[-1] + len(image_data))
+            image_index.append(image_index[-1] + len(image_data))
             spr_file.write(image_data)
 
         # Go back and write the image index:
         spr_file.seek(image_index_offset)
-        image_index = [
-            image_offsets[i] for i in sprite.image_index] + [image_offsets[-1]]
         spr_file.write(struct.pack('<{}l'.format(len(image_index)),
                                    *image_index))
