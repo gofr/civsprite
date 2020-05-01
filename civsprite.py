@@ -4,12 +4,14 @@ import argparse
 import sys
 
 import sprite.format.spr
+import sprite.format.txt
 import sprite.format.xml
 
 
 def _input_format(name):
     input_formats = {
         'spr': sprite.format.spr.load,
+        'txt': sprite.format.txt.load,
         'xml': sprite.format.xml.load
     }
     split_name = name.rsplit('.', 1)
@@ -26,6 +28,7 @@ def _input_format(name):
 def _output_format(name):
     output_formats = {
         'spr': sprite.format.spr.save,
+        'txt': sprite.format.txt.save,
         'xml': sprite.format.xml.save
     }
     split_name = name.rsplit('.', 1)
