@@ -42,24 +42,29 @@ FRAMES_HELP = f"""\
 ;
 ; An ordered list of animation frames.
 ;
-; image, transparency, start, end loop, mirror, end, continuous
+; image, transparency, start, loop, mirror, end, continuous
 ;
 ;   image        = The image (from {IMAGES_HEADER}) to use for this frame,
 ;                  referenced by its index number. The first image has index 0.
+;                  This can't be higher than 1023, so only a total of 1024
+;                  images can be used in all animations in a single file.
 ;
 ;   transparency = A value 0 to 7, where 0 is fully opaque and 7 is 7/8
-;                  transparent.
+;                  transparent. Only units can have transparency.
 ;
 ;   start      = Is this frame the start of an animation? 0=no, 1=yes
 ;                Resource animations must start with a "start" frame.
-;                Unit animations only need a "start" frame if they're loops.
-;   end loop   = Is this the end of a loop? 0=no, 1=yes. The loop jumps back to
+;                Unit animations only need a "start" frame for loops.
+;   loop       = Is this the end of a loop? 0=no, 1=yes. The loop jumps back to
 ;                the last "start" frame before it in the frames list.
 ;   mirror     = Mirror the image horizontally? 0=no, 1=yes
 ;   end        = Does this frame mark the end of an animation? 0=no, 1=yes
 ;                End frames themselves are not displayed.
+;                This flag is only needed on non-looping animations.
+;                If a frame is both a start and end frame, that turns off the
+;                animation.
 ;   continuous = Play this frame as part of a continuous loop? 0=no, 1=yes
-;                This only applies to resources, like the Oil resource in the
+;                This only applies to resources, like the Oil resources in the
 ;                Original game. All frames in the continuously looping
 ;                animation should have this set to 1.
 ;"""
@@ -193,13 +198,13 @@ def load(path):
 def _get_images_text(images, has_animations):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
     titles = None
-    # Only Static.spr has no animations, which has 5 images per unit:
     if not has_animations:
+        # Only Static.spr has no animations and has 5 images per unit.
+        # But use (1 + len) because it doesn't matter if the titles iterator is
+        # longer than the actual number of images. Don't break if someone
+        # decides they want to write a funny .spr file that does not have a
+        # multiple of 5 images.
         titles = itertools.product(
-            # 1 + len() because it doesn't matter if the titles iterator is
-            # longer than the actual number of images. Don't break if someone
-            # decides they want to write a funny .spr file that does not have
-            # a multiple of 5 images.
             ['Unit'], range(1 + len(images) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
     for n, image in enumerate(images):
