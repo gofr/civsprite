@@ -8,7 +8,7 @@ import enum
 import collections
 import itertools
 
-import sprite.objects
+import sprite.objects as objects
 
 
 IMAGES_HEADER = '@IMAGES'
@@ -105,7 +105,7 @@ def _parse_image(line, line_no):
 
 def _parse_frame(line, line_no, num_images):
     """Return a valid sprite.objects.Frame from a frame text line."""
-    frame = _line_to_namedtuple(line, line_no, sprite.objects.Frame)
+    frame = _line_to_namedtuple(line, line_no, objects.Frame)
     try:
         frame.image = int(frame.image)
         if frame.image < 0 or frame.image >= num_images:
@@ -192,22 +192,21 @@ def load(path):
                 elif in_section == Section.ANIMATIONS:
                     animations.append(
                         _parse_animation(stripped_line, line_no, len(frames)))
-    return sprite.objects.Sprite(images, frames, animations)
+    return objects.Sprite(images, frames, animations)
 
 
-def _get_images_text(images, has_animations):
+def _get_images_text(sprite):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
     titles = None
-    if not has_animations:
-        # Only Static.spr has no animations and has 5 images per unit.
-        # But use (1 + len) because it doesn't matter if the titles iterator is
-        # longer than the actual number of images. Don't break if someone
-        # decides they want to write a funny .spr file that does not have a
-        # multiple of 5 images.
+    if sprite.type == objects.SpriteType.STATIC:
+        # There are 5 images per unit. But use (1 + len) because it doesn't
+        # matter if the titles iterator is longer than the actual number of
+        # images. Don't break if someone decides they want to write a funny
+        # .spr file that does not have a multiple of 5 images.
         titles = itertools.product(
-            [', Unit'], range(1 + len(images) // 5),
+            [', Unit'], range(1 + len(sprite.images) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
-    for n, image in enumerate(images):
+    for n, image in enumerate(sprite.images):
         has_mask = 255 in image.getdata(3)
         # TODO: Write actual values:
         text += (
@@ -227,10 +226,9 @@ def save(sprite, path):
     # useful for something.
     # TODO: Load info from Rules.txt somewhere and use Unit/Terrain names from
     # that for the names of the images/animations here.
-    has_animations = bool(sprite.frames)
     with open(path, 'w') as f:
-        f.write(_get_images_text(sprite.images, has_animations))
-        if has_animations:
+        f.write(_get_images_text(sprite))
+        if sprite.has_animations:
             f.write('\n')
             f.write(FRAMES_HELP + '\n')
             f.write(FRAMES_HEADER + '\n')
@@ -242,11 +240,11 @@ def save(sprite, path):
             f.write(ANIMATIONS_HELP + '\n')
             f.write(ANIMATIONS_HEADER + '\n')
             titles = None
-            if len(sprite.animation_index) == 32:
+            if sprite.type == objects.SpriteType.UNIT:
                 actions = ['Attack', 'Die', 'Idle', 'Move']
                 directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
                 titles = itertools.product(actions, directions)
-            elif len(sprite.animation_index) % 8 == 0:
+            elif sprite.type == objects.SpriteType.RESOURCES:
                 titles = itertools.product(
                     ['Map'], range(4),
                     ['Resource'], range(2),

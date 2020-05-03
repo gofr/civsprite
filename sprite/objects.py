@@ -9,6 +9,7 @@ Each file format conversion module should expose the following two functions:
 """
 
 import collections
+import enum
 
 
 Frame = collections.namedtuple('Frame', [
