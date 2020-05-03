@@ -98,12 +98,20 @@ For example:
 # images per animation. Only a handful have more than 20. The longest unit
 # animation has 41. The longest resource animation has 20.
 #
-# So it should be reasonable to make the --as-storyboard flag save:
+# And another NOTE: The only sprite files where multiple animations start on
+# the same start frame are the train (Unit99) and resource files. The trains
+# only use it to set all their Attack and Die animations to the same, empty
+# animation. Resources are re-used quite a lot on different terrain types.
+#
+# So it should be reasonable to make the --storyboard flag save:
 # * each unit as a single row of N/NE/E/SE/S images for the Static.spr.
 # * each unit/resource animation as a single row of images.
     parser.add_argument(
-        '--as-storyboard', action='store_true',
-        help='instead of storing each image as a separate file')
+        '--storyboard', action='store_true',
+        help='''instead of storing each image as a separate file, store all 5
+                directions of the units in Static.spr in a single storyboard
+                image, and store all images in each unit and resource animation
+                in UnitX.spr and Resource.spr in a single image.''')
     parser.add_argument(
         '--adjacent-mask', action='store_true',
         help='''instead of writing the mask to a separate image file, write it
