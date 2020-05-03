@@ -2,10 +2,10 @@
 
 Each file format conversion module should expose the following two functions:
 
-* load(path)
-  Return a Sprite object for the file at the given 'path'.
-* save(sprite, path)
-  Create a file at the given 'path' from the 'sprite' Sprite object.
+    load(path)
+        Return a Sprite object for the file at the given 'path'.
+    save(sprite, path)
+        Create a file at the given 'path' from the 'sprite' Sprite object.
 """
 
 import collections
@@ -26,6 +26,12 @@ mirror - True for frames that should be horizontally mirrored.
 end - True for the last frame in an animation (this frame is not displayed)
 continuous - True for all frames in a continuously repeating loop
 """
+
+
+class SpriteType(enum.Enum):
+    RESOURCES = 1
+    STATIC = 2
+    UNIT = 3
 
 
 class Sprite(object):
@@ -50,3 +56,11 @@ class Sprite(object):
         self.animation_index = animation_index
 
         self.has_animations = self.frames is not None
+
+        if self.has_animations:
+            if len(self.animation_index) == 32:
+                self.type = SpriteType.UNIT
+            else:
+                self.type = SpriteType.RESOURCES
+        else:
+            self.type = SpriteType.STATIC
