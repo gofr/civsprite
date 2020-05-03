@@ -249,8 +249,8 @@ def save(sprite, path):
             elif len(sprite.animation_index) % 8 == 0:
                 titles = itertools.product(
                     ['Map'], range(4),
-                    ['Terrain'], range(len(sprite.animation_index) // 8),
-                    ['Resource'], range(2))
+                    ['Resource'], range(2),
+                    ['Terrain'], range(len(sprite.animation_index) // 8))
             for animation in sprite.animation_index:
                 if titles:
                     f.write(f'{animation: <4}')
