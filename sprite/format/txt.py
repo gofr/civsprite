@@ -205,7 +205,7 @@ def _get_images_text(images, has_animations):
         # decides they want to write a funny .spr file that does not have a
         # multiple of 5 images.
         titles = itertools.product(
-            ['Unit'], range(1 + len(images) // 5),
+            [', Unit'], range(1 + len(images) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
     for n, image in enumerate(images):
         has_mask = 255 in image.getdata(3)
