@@ -7,6 +7,7 @@ itself uses.
 import enum
 import collections
 import itertools
+import os
 
 import sprite.objects as objects
 
@@ -221,20 +222,70 @@ def _get_images_text(sprite):
             'dummy_path.png, 0, 0, 64, 64'
             + (', dummy_mask.png, 0, 0' if has_mask else '')
             + f' ; {n}'
-            + (" ".join(map(str, titles.__next__())) if titles else '')
+            + (' '.join(map(str, titles.__next__())) if titles else '')
             + '\n')
     return text
 
 
-def save(sprite, path):
+def save_images(sprite, txt_path, storyboard):
+    """Save PNGs for the sprite object and return list of Image namedtuples
+
+    The returned list corresponds exactly to the list in sprite.images, with
+    one namedtuple per image.
+    """
+    img_dir, _ext = os.path.splitext(txt_path)
+    # TODO: User-friendly error-handling and possibility to override:
+    os.makedirs(img_dir)
+
+    all_images = [None] * len(sprite.images)
+    if storyboard:
+        if sprite.has_animations:
+            seen_animations = {}
+            for start_frame in sprite.animation_index:
+                if start_frame in seen_animations:
+                    continue
+                else:
+                    seen_animations.append(start_frame)
+                # Create a unique list of the images used in this animation,
+                # excluding the end frame which isn't displayed:
+                anim_images = []
+                for f in sprite.frames[start_frame:]:
+                    if f.end:
+                        break
+                    elif f.end_loop and f.image not in anim_images:
+                        anim_images.append(f.image)
+                        break
+                    elif f.image not in anim_images:
+                        anim_images.append(f.image)
+                if anim_images:
+                    # TODO: write the images in anim_images to a single PNG,
+                    # and set the corresponding indexes in all_images to an
+                    # Image namedtuple that matches the file/coords that were
+                    # written to the PNG.
+                    pass
+            # TODO: What to do with all the None still in all_images? Those
+            # were images that were not used in animations (or only in end
+            # frames). Write them together in a leftovers file?
+        else:
+            for i in range(0, len(sprite.images), 5):
+                # TODO: Write sprite.images[i:i + 5] together to a single PNG.
+                # And fill all_images with namedtuples for them.
+                pass
+    else:
+        for img in sprite.images:
+            # TODO: Write each image to a PNG and add namedtuple to all_images.
+            pass
+    return all_images
+
+
+def save(sprite, path, storyboard=False):
     """Save sprite.objects.Sprite object 'sprite' to .txt file 'path'"""
-    # TODO: Save PNGs like in xml format. In same folder as .txt file.
-    # TODO: Also make it possible to write multiple images to the same file,
-    # so my x/y/width/height parameters in the image text format are actually
-    # useful for something.
+
+    img_list = save_images(sprite, path, storyboard)
     # TODO: Load info from Rules.txt somewhere and use Unit/Terrain names from
     # that for the names of the images/animations here.
     with open(path, 'w') as f:
+        # TODO: Use img_list in _get_images_text:
         f.write(_get_images_text(sprite))
         if sprite.has_animations:
             f.write('\n')
