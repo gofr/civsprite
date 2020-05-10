@@ -9,6 +9,8 @@ import collections
 import itertools
 import os
 
+from PIL import Image, ImageOps
+
 import sprite.objects as objects
 
 
@@ -33,7 +35,8 @@ IMAGES_HELP = """\
 ; coordinates. If the mask path is empty (whitespace only), it will use the
 ; same file path as that of the image.
 ;"""
-Image = collections.namedtuple('Image', [
+# TODO: Move this next to the Sprite object.
+ImageDetails = collections.namedtuple('ImageDetails', [
     'image_path', 'image_x', 'image_y', 'width', 'height',
     'mask_path', 'mask_x', 'mask_y'], defaults=(None, None, None))
 
@@ -108,8 +111,8 @@ def _line_to_namedtuple(line, line_no, tuple_type):
 
 def _parse_image(line, line_no):
     """Return a valid PIL Image object from an image text line."""
-    # TODO: Turn the named tuple into a PIL Image object.
-    return _line_to_namedtuple(line, line_no, Image)
+    # TODO: Turn the ImageDetails into a PIL Image object.
+    return _line_to_namedtuple(line, line_no, ImageDetails)
 
 
 def _parse_frame(line, line_no, num_images):
@@ -204,9 +207,16 @@ def load(path):
     return objects.Sprite(images, frames, animations)
 
 
-def _get_images_text(sprite):
+def _image_details_to_text(image_details):
+    # TODO: The file paths in here can be relative or absolute.
+    # Should I make sure that the paths there are always absolute?
+    # Make sure the paths are relative to the text file here.
+    return ', '.join(map(str, filter(lambda x: x is not None, image_details)))
+
+
+def _get_images_text(sprite, image_details):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
-    titles = None
+    titles = iter(())
     if sprite.type == objects.SpriteType.STATIC:
         # There are 5 images per unit. But use (1 + len) because it doesn't
         # matter if the titles iterator is longer than the actual number of
@@ -216,77 +226,146 @@ def _get_images_text(sprite):
             [', Unit'], range(1 + len(sprite.images) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
     for n, image in enumerate(sprite.images):
-        has_mask = 255 in image.getdata(3)
-        # TODO: Write actual values:
-        text += (
-            'dummy_path.png, 0, 0, 64, 64'
-            + (', dummy_mask.png, 0, 0' if has_mask else '')
-            + f' ; {n}'
-            + (' '.join(map(str, titles.__next__())) if titles else '')
-            + '\n')
+        if image_details[n]:
+            details = _image_details_to_text(image_details[n])
+        else:
+            details = 'unused'
+        text += f'{details} ; {n}{" ".join(map(str, next(titles, "")))}\n'
     return text
 
 
-def save_images(sprite, txt_path, storyboard):
-    """Save PNGs for the sprite object and return list of Image namedtuples
+# TODO: Move this to the Sprite object.
+def get_images_for_animation(sprite, start_frame):
+    """Return list of images used in animation starting with start_frame"""
+    # Create a unique list of the indexes of images used in this animation,
+    # excluding the end frame which isn't displayed:
+    images = []
+    for frame in sprite.frames[start_frame:]:
+        if frame.end:
+            break
+        if frame.image not in images:
+            images.append(frame.image)
+        if frame.end_loop:
+            break
+    return images
 
-    The returned list corresponds exactly to the list in sprite.images, with
-    one namedtuple per image.
+
+# TODO: Move this to the Sprite object.
+def save_image(sprite, path, indexes, borders=True):
+    """Save images marked by indexes to path and return list of ImageDetails
+
+    The items in the returned list correspond to the indexes passed in.
     """
-    img_dir, _ext = os.path.splitext(txt_path)
+    all_image_details = []
+    if not indexes:
+        return all_image_details
+    total_width = int(borders)
+    max_height = 0
+    any_masks = False
+    for i in indexes:
+        total_width += sprite.images[i].width + int(borders)
+        max_height = max(max_height, sprite.images[i].height)
+        any_masks = any_masks or 255 in sprite.images[i].getdata(3)
+    total_height = max_height + 2 * int(borders)
+    if any_masks:
+        total_height += max_height + int(borders)
+    total_image = Image.new('RGB', (total_width, total_height), (255, 0, 255))
+    left = 0
+    for n, i in enumerate(indexes):
+        current_mask = None
+        if any_masks:
+            current_mask = Image.new('1', sprite.images[i].size, None)
+            current_mask.putdata(sprite.images[i].getdata(3))
+            if borders:
+                current_mask = ImageOps.expand(
+                    current_mask.convert('RGB'), int(borders), (0, 255, 0))
+        if borders:
+            current_image = ImageOps.expand(
+                sprite.images[i], int(borders), (0, 255, 0))
+        else:
+            current_image = sprite.images[i]
+        image_box = (
+            left, 0,
+            left + current_image.width, current_image.height)
+        total_image.paste(current_image, image_box)
+        if current_mask:
+            mask_box = (
+                left, int(borders) + max_height,
+                left + current_mask.width,
+                int(borders) + max_height + current_mask.height)
+            total_image.paste(current_mask, mask_box)
+        all_image_details.append(ImageDetails(
+            path,
+            int(borders) + left, int(borders),
+            sprite.images[i].width, sprite.images[i].height,
+            '' if current_mask else None,
+            int(borders) + left if current_mask else None,
+            2 * int(borders) + max_height if current_mask else None))
+        left += sprite.images[i].width + int(borders)
+    total_image.save(path)
+    return all_image_details
+
+
+# TODO: Move this to the Sprite object.
+def save_images(sprite, images_dir, storyboard=True, borders=True):
+    """Save PNGs for the sprite object and return list of ImageDetails
+
+    The returned list corresponds exactly to the list in sprite.images.
+    """
     # TODO: User-friendly error-handling and possibility to override:
-    os.makedirs(img_dir)
+    os.makedirs(images_dir)
 
     all_images = [None] * len(sprite.images)
     if storyboard:
         if sprite.has_animations:
-            seen_animations = {}
-            for start_frame in sprite.animation_index:
+            seen_animations = []
+            for n, start_frame in enumerate(sprite.animation_index):
                 if start_frame in seen_animations:
                     continue
-                else:
-                    seen_animations.append(start_frame)
-                # Create a unique list of the images used in this animation,
-                # excluding the end frame which isn't displayed:
-                anim_images = []
-                for f in sprite.frames[start_frame:]:
-                    if f.end:
-                        break
-                    elif f.end_loop and f.image not in anim_images:
-                        anim_images.append(f.image)
-                        break
-                    elif f.image not in anim_images:
-                        anim_images.append(f.image)
+                seen_animations.append(start_frame)
+                # All images that have not already been saved:
+                anim_images = [
+                    i for i in get_images_for_animation(sprite, start_frame)
+                    if all_images[i] is None
+                ]
                 if anim_images:
-                    # TODO: write the images in anim_images to a single PNG,
-                    # and set the corresponding indexes in all_images to an
-                    # Image namedtuple that matches the file/coords that were
-                    # written to the PNG.
-                    pass
+                    image_path = os.path.join(
+                        images_dir, f'animation-{n:03d}.png')
+                    image_details = save_image(
+                        sprite, image_path, anim_images, borders)
+                    for i, img in enumerate(anim_images):
+                        all_images[img] = image_details[i]
             # TODO: What to do with all the None still in all_images? Those
             # were images that were not used in animations (or only in end
             # frames). Write them together in a leftovers file?
+            # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
         else:
-            for i in range(0, len(sprite.images), 5):
-                # TODO: Write sprite.images[i:i + 5] together to a single PNG.
-                # And fill all_images with namedtuples for them.
-                pass
+            static_images = range(len(sprite.images))
+            directions = 5  # facing directions per unit
+            unit = 0
+            while static_images:
+                image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
+                current_images = static_images[0:directions]
+                image_details = save_image(
+                    sprite, image_path, current_images, borders)
+                for n, img in enumerate(current_images):
+                    all_images[img] = image_details[n]
+                static_images = static_images[directions:]
+                unit += 1
     else:
         for img in sprite.images:
-            # TODO: Write each image to a PNG and add namedtuple to all_images.
+            # TODO: Write each image to PNG and add ImageDetails to all_images.
             pass
     return all_images
 
 
-def save(sprite, path, storyboard=False):
+def save(sprite, path):
     """Save sprite.objects.Sprite object 'sprite' to .txt file 'path'"""
 
-    img_list = save_images(sprite, path, storyboard)
-    # TODO: Load info from Rules.txt somewhere and use Unit/Terrain names from
-    # that for the names of the images/animations here.
+    images_dir, _ext = os.path.splitext(path)
+    img_list = save_images(sprite, images_dir)
     with open(path, 'w') as f:
-        # TODO: Use img_list in _get_images_text:
-        f.write(_get_images_text(sprite))
+        f.write(_get_images_text(sprite, img_list))
         if sprite.has_animations:
             f.write('\n')
             f.write(FRAMES_HELP + '\n')
@@ -311,6 +390,6 @@ def save(sprite, path, storyboard=False):
             for animation in sprite.animation_index:
                 if titles:
                     f.write(f'{animation: <4}')
-                    f.write(f' ; {" ".join(map(str, titles.__next__()))}\n')
+                    f.write(f' ; {" ".join(map(str, next(titles)))}\n')
                 else:
                     f.write(f'{animation}')
