@@ -8,6 +8,7 @@ import enum
 import collections
 import itertools
 import os
+import sys
 
 from PIL import Image, ImageOps
 
@@ -91,7 +92,7 @@ ANIMATIONS_HELP = f"""\
 ;"""
 
 
-def _line_to_namedtuple(line, line_no, tuple_type):
+def _line_to_namedtuple(line, tuple_type):
     values = [v.strip() for v in line.split(',')]
     num_fields = len(tuple_type._fields)
     min_fields = num_fields - len(tuple_type._field_defaults)
@@ -99,41 +100,39 @@ def _line_to_namedtuple(line, line_no, tuple_type):
     num_values = len(values)
     if num_values > num_fields:
         raise ValueError(
-            f'Too many values on line {line_no}. Found {num_values} values.'
+            f'Too many comma-separated values. Found {num_values} values.'
             f' Expected {"at most" if has_defaults else "only"} {num_fields}.')
     elif num_values < min_fields:
         raise ValueError(
-            f'Too few values on line {line_no}. Found {num_values} values.'
+            f'Too few comma-separated values. Found {num_values} value(s).'
             f' Expected{" at least" if has_defaults else ""} {min_fields}.')
     else:
         return tuple_type(*values)
 
 
-def _parse_image(line, line_no):
+def _parse_image(line):
     """Return a valid PIL Image object from an image text line."""
     # TODO: Turn the ImageDetails into a PIL Image object.
-    return _line_to_namedtuple(line, line_no, ImageDetails)
+    return _line_to_namedtuple(line, ImageDetails)
 
 
-def _parse_frame(line, line_no, num_images):
+def _parse_frame(line, num_images):
     """Return a valid sprite.objects.Frame from a frame text line."""
-    frame = _line_to_namedtuple(line, line_no, objects.Frame)
+    frame = _line_to_namedtuple(line, objects.Frame)
     try:
         frame.image = int(frame.image)
         if frame.image < 0 or frame.image >= num_images:
-            raise ValueError()
+            raise ValueError
     except ValueError:
         raise ValueError(
-            f'The frame on line {line_no} does not have a valid image index.'
-            f' Found "{frame.image}". Expected an integer from 0 to'
-            f' {num_images}.')
+            f'Frame does not have valid image index. Found "{frame.image}".'
+            f' Expected an integer from 0 to {num_images}.')
     try:
         frame.transparency = int(frame.transparency)
     except ValueError:
         raise ValueError(
-            f'The frame on line {line_no} does not have a valid transparency'
-            f' value. Found "{frame.transparency}". Expected an integer'
-            ' from 0 to 7.')
+            f'Frame does not have valid transparency value.'
+            f' Found "{frame.transparency}". Expected an integer from 0 to 7.')
     frame.start = bool(frame.start)
     frame.end_loop = bool(frame.end_loop)
     frame.mirror = bool(frame.mirror)
@@ -142,17 +141,16 @@ def _parse_frame(line, line_no, num_images):
     return frame
 
 
-def _parse_animation(line, line_no, num_frames):
+def _parse_animation(line, num_frames):
     """Return a valid frame index number from an animation text line."""
     try:
         anim_index = int(line)
         if anim_index < 0 or anim_index >= num_frames:
-            raise ValueError()
+            raise ValueError
     except ValueError:
         raise ValueError(
-            f'The animation on line {line_no} does not have a valid frame'
-            f' index. Found "{line}". Expected an integer from 0 to'
-            f' {num_frames}.')
+            f'Animation does not have valid frame index. Found "{line}".'
+            f' Expected an integer from 0 to {num_frames - 1}.')
     return anim_index
 
 
@@ -164,46 +162,49 @@ def load(path):
         FRAMES = 2
         ANIMATIONS = 3
 
-    with open(path) as txt:
+    with open(path) as text_file:
         in_section = None
         images = []
         frames = []
         animations = []
         line_no = 0
 
-        for line in txt:
-            line_no += 1
-            # Strip comments and whitespace:
-            stripped_line = line.split(';', 1)[0].strip()
-            if not stripped_line:
-                continue
-            elif stripped_line.upper() == IMAGES_HEADER:
-                if frames or animations:
-                    raise ValueError(
-                        f'{IMAGES_HEADER} must come before {FRAMES_HEADER}'
-                        f' and {ANIMATIONS_HEADER}.')
-                in_section = Section.IMAGES
-            elif stripped_line.upper() == FRAMES_HEADER:
-                if not images or animations:
-                    raise ValueError(
-                        f'{FRAMES_HEADER} must come after {IMAGES_HEADER} and'
-                        f' before {ANIMATIONS_HEADER}.')
-                in_section = Section.FRAMES
-            elif stripped_line.upper() == ANIMATIONS_HEADER:
-                if not images or not frames:
-                    raise ValueError(
-                        f'{ANIMATIONS_HEADER} must come before {IMAGES_HEADER}'
-                        f' and {FRAMES_HEADER}.')
-                in_section = Section.ANIMATIONS
-            else:
-                if in_section == Section.IMAGES:
-                    images.append(_parse_image(stripped_line, line_no))
-                elif in_section == Section.FRAMES:
-                    frames.append(
-                        _parse_frame(stripped_line, line_no, len(images)))
-                elif in_section == Section.ANIMATIONS:
-                    animations.append(
-                        _parse_animation(stripped_line, line_no, len(frames)))
+        for line in text_file:
+            try:
+                line_no += 1
+                # Strip comments and whitespace:
+                stripped_line = line.split(';', 1)[0].strip()
+                if not stripped_line:
+                    continue
+                elif stripped_line.upper() == IMAGES_HEADER:
+                    if frames or animations:
+                        raise ValueError(
+                            f'{IMAGES_HEADER} must come before {FRAMES_HEADER}'
+                            f' and {ANIMATIONS_HEADER}.')
+                    in_section = Section.IMAGES
+                elif stripped_line.upper() == FRAMES_HEADER:
+                    if not images or animations:
+                        raise ValueError(
+                            f'{FRAMES_HEADER} must come after {IMAGES_HEADER}'
+                            f' and before {ANIMATIONS_HEADER}.')
+                    in_section = Section.FRAMES
+                elif stripped_line.upper() == ANIMATIONS_HEADER:
+                    if not images or not frames:
+                        raise ValueError(
+                            f'{ANIMATIONS_HEADER} must come after'
+                            f' {IMAGES_HEADER} and {FRAMES_HEADER}.')
+                    in_section = Section.ANIMATIONS
+                else:
+                    if in_section == Section.IMAGES:
+                        images.append(_parse_image(stripped_line))
+                    elif in_section == Section.FRAMES:
+                        frames.append(
+                            _parse_frame(stripped_line, len(images)))
+                    elif in_section == Section.ANIMATIONS:
+                        animations.append(_parse_animation(
+                            stripped_line, len(frames)))
+            except ValueError as e:
+                sys.exit(f'Error while loading {path}, line {line_no}:\n{e}')
     return objects.Sprite(images, frames, animations)
 
 
