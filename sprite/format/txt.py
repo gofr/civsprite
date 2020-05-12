@@ -92,53 +92,104 @@ ANIMATIONS_HELP = f"""\
 ;"""
 
 
-def _line_to_namedtuple(line, tuple_type):
-    values = [v.strip() for v in line.split(',')]
-    num_fields = len(tuple_type._fields)
-    min_fields = num_fields - len(tuple_type._field_defaults)
-    has_defaults = min_fields < num_fields
-    num_values = len(values)
-    if num_values > num_fields:
-        raise ValueError(
-            f'Too many comma-separated values. Found {num_values} values.'
-            f' Expected {"at most" if has_defaults else "only"} {num_fields}.')
-    elif num_values < min_fields:
-        raise ValueError(
-            f'Too few comma-separated values. Found {num_values} value(s).'
-            f' Expected{" at least" if has_defaults else ""} {min_fields}.')
-    else:
-        return tuple_type(*values)
-
-
-def _parse_image(line):
+def _parse_image(line, root_dir):
     """Return a valid PIL Image object from an image text line."""
     # TODO: Turn the ImageDetails into a PIL Image object.
-    return _line_to_namedtuple(line, ImageDetails)
+    values = [v.strip() for v in line.split(',')]
+    image = {}
+    try:
+        image['image_path'] = os.path.join(root_dir, values[0])
+    except IndexError:
+        raise ValueError('Image misses image path value.')
+    index = 1
+    for prop in ('x', 'y', 'width', 'height'):
+        try:
+            image[prop] = int(values[index])
+            if image[prop] < 0:
+                raise ValueError
+        except IndexError:
+            raise ValueError(f'Image misses {prop} value.')
+        except ValueError:
+            raise ValueError(
+                f'Image has invalid {prop} value. Found "{values[index]}".'
+                f' Expected integer 0 or higher.')
+        index += 1
+    # Turn human-readable names into object property names:
+    image['image_x'] = image['x']
+    image['image_y'] = image['y']
+    del image['x']
+    del image['y']
+    try:
+        mask_path = values[5]
+        if mask_path == '':
+            image['mask_path'] = image['image_path']
+        elif mask_path:
+            image['mask_path'] = os.path.join(root_dir, mask_path)
+    except IndexError:
+        pass  # This field is optional.
+    index = 6
+    for prop in ('x', 'y'):
+        try:
+            image[prop] = int(values[index])
+            if image[prop] < 0:
+                raise ValueError
+        except IndexError:
+            # The coordinates are only required if there is a mask.
+            if image.get('mask_path'):
+                raise ValueError(f'Mask misses {prop} value.')
+        except ValueError:
+            raise ValueError(
+                f'Mask has invalid {prop} value. Found "{values[index]}".'
+                f' Expected integer 0 or higher.')
+        index += 1
+    # Turn human-readable names into object property names:
+    if image.get('mask_path'):
+        image['mask_x'] = image['x']
+        image['mask_y'] = image['y']
+        del image['x']
+        del image['y']
+    return ImageDetails(**image)
 
 
 def _parse_frame(line, num_images):
     """Return a valid sprite.objects.Frame from a frame text line."""
-    frame = _line_to_namedtuple(line, objects.Frame)
+    values = [v.strip() for v in line.split(',')]
+    frame = {}
     try:
-        frame.image = int(frame.image)
-        if frame.image < 0 or frame.image >= num_images:
+        frame['image'] = int(values[0])
+        if frame['image'] < 0 or frame['image'] >= num_images:
             raise ValueError
+    except IndexError:
+        raise ValueError('Frame misses image index.')
     except ValueError:
         raise ValueError(
-            f'Frame does not have valid image index. Found "{frame.image}".'
-            f' Expected an integer from 0 to {num_images}.')
+            f'Frame has invalid image index. Found "{values[0]}".'
+            f' Expected integer from 0 to {num_images}.')
     try:
-        frame.transparency = int(frame.transparency)
+        frame['transparency'] = int(values[1])
+        if frame['transparency'] < 0 or frame['transparency'] > 7:
+            raise ValueError
+    except IndexError:
+        raise ValueError('Frame misses transparency value.')
     except ValueError:
         raise ValueError(
-            f'Frame does not have valid transparency value.'
-            f' Found "{frame.transparency}". Expected an integer from 0 to 7.')
-    frame.start = bool(frame.start)
-    frame.end_loop = bool(frame.end_loop)
-    frame.mirror = bool(frame.mirror)
-    frame.end = bool(frame.end)
-    frame.continuous = bool(frame.continuous)
-    return frame
+            f'Frame has invalid transparency value.'
+            f' Found "{values[1]}". Expected integer from 0 to 7.')
+    index = 2
+    for prop in ('start', 'loop', 'mirror', 'end', 'continuous'):
+        try:
+            frame[prop] = bool(int(values[index]))
+        except IndexError:
+            raise ValueError(f'Frame misses {prop} value.')
+        except ValueError:
+            raise ValueError(
+                f'Frame has invalid {prop} value. Found "{values[index]}".'
+                ' Expected 0 or 1.')
+        index += 1
+    # Turn human-readable name into object property name:
+    frame['end_loop'] = frame['loop']
+    del frame['loop']
+    return objects.Frame(**frame)
 
 
 def _parse_animation(line, num_frames):
@@ -149,7 +200,7 @@ def _parse_animation(line, num_frames):
             raise ValueError
     except ValueError:
         raise ValueError(
-            f'Animation does not have valid frame index. Found "{line}".'
+            f'Animation has invalid frame index. Found "{line}".'
             f' Expected an integer from 0 to {num_frames - 1}.')
     return anim_index
 
@@ -161,6 +212,8 @@ def load(path):
         IMAGES = 1
         FRAMES = 2
         ANIMATIONS = 3
+
+    root_dir = os.path.dirname(path)
 
     with open(path) as text_file:
         in_section = None
@@ -196,7 +249,7 @@ def load(path):
                     in_section = Section.ANIMATIONS
                 else:
                     if in_section == Section.IMAGES:
-                        images.append(_parse_image(stripped_line))
+                        images.append(_parse_image(stripped_line, root_dir))
                     elif in_section == Section.FRAMES:
                         frames.append(
                             _parse_frame(stripped_line, len(images)))
