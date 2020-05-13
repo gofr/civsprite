@@ -23,7 +23,8 @@ IMAGES_HELP = """\
 ;
 ; image path, img x, img y, width, height, mask path, mask x, mask y
 ;
-;   image path    = Path to the image, relative to directory of this text file.
+;   image path    = Path to the image. The path can be relative to the
+;                   directory of this text file, or absolute.
 ;   x, y          = Top-left coordinate of the image or mask in the image file.
 ;   width, height = dimensions of the part of the image to use. Not repeated
 ;                   for the mask because it must be the same size.
@@ -37,6 +38,7 @@ IMAGES_HELP = """\
 ; same file path as that of the image.
 ;"""
 # TODO: Move this next to the Sprite object.
+# Make it a normal object. And require both paths to be absolute.
 ImageDetails = collections.namedtuple('ImageDetails', [
     'image_path', 'image_x', 'image_y', 'width', 'height',
     'mask_path', 'mask_x', 'mask_y'], defaults=(None, None, None))
@@ -97,7 +99,8 @@ def _parse_image(values, root_dir):
     # TODO: Turn the ImageDetails into a PIL Image object.
     image = {}
     try:
-        image['image_path'] = os.path.join(root_dir, values[0])
+        image['image_path'] = os.path.abspath(
+            os.path.join(root_dir, values[0]))
     except IndexError:
         raise ValueError('Image misses image path value.')
     index = 1
@@ -123,7 +126,8 @@ def _parse_image(values, root_dir):
         if mask_path == '':
             image['mask_path'] = image['image_path']
         elif mask_path:
-            image['mask_path'] = os.path.join(root_dir, mask_path)
+            image['mask_path'] = os.path.abspath(
+                os.path.join(root_dir, mask_path))
     except IndexError:
         pass  # This field is optional.
     index = 6
@@ -134,7 +138,7 @@ def _parse_image(values, root_dir):
                 raise ValueError
         except IndexError:
             # The coordinates are only required if there is a mask.
-            if image.get('mask_path'):
+            if image.get('mask_path') is not None:
                 raise ValueError(f'Mask misses {prop} value.')
         except ValueError:
             raise ValueError(
@@ -213,7 +217,7 @@ def load(path):
         FRAMES = 2
         ANIMATIONS = 3
 
-    root_dir = os.path.dirname(path)
+    root_dir = os.path.abspath(os.path.dirname(path))
 
     with open(path) as text_file:
         in_section = None
@@ -262,14 +266,21 @@ def load(path):
     return objects.Sprite(images, frames, animations)
 
 
-def _image_details_to_text(image_details):
-    # TODO: The file paths in here can be relative or absolute.
-    # Should I make sure that the paths there are always absolute?
-    # Make sure the paths are relative to the text file here.
-    return ', '.join(map(str, filter(lambda x: x is not None, image_details)))
+def _image_details_to_text(details, root_dir):
+    image_path = os.path.relpath(details.image_path, root_dir)
+    text = (
+        f'{image_path},{details.image_x: >4},{details.image_y: >4}'
+        f',{details.width: >4},{details.height: >4}'
+    )
+    if details.mask_path is not None:
+        mask_path = os.path.relpath(details.mask_path, root_dir)
+        if mask_path == image_path:
+            mask_path = ''
+        text += f', {mask_path},{details.mask_x: >4},{details.mask_y: >4}'
+    return text
 
 
-def _get_images_text(sprite, image_details):
+def _get_images_text(sprite, image_details, root_dir):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
     titles = iter(())
     if sprite.type == objects.SpriteType.STATIC:
@@ -282,7 +293,7 @@ def _get_images_text(sprite, image_details):
             ['N', 'NE', 'E', 'SE', 'S'])
     for n, image in enumerate(sprite.images):
         if image_details[n]:
-            details = _image_details_to_text(image_details[n])
+            details = _image_details_to_text(image_details[n], root_dir)
         else:
             details = 'unused'
         text += f'{details} ; {n}{" ".join(map(str, next(titles, "")))}\n'
@@ -350,10 +361,10 @@ def save_image(sprite, path, indexes, borders=True):
                 int(borders) + max_height + current_mask.height)
             total_image.paste(current_mask, mask_box)
         all_image_details.append(ImageDetails(
-            path,
+            os.path.abspath(path),
             int(borders) + left, int(borders),
             sprite.images[i].width, sprite.images[i].height,
-            '' if current_mask else None,
+            os.path.abspath(path) if current_mask else None,
             int(borders) + left if current_mask else None,
             2 * int(borders) + max_height if current_mask else None))
         left += sprite.images[i].width + int(borders)
@@ -420,7 +431,7 @@ def save(sprite, path):
     images_dir, _ext = os.path.splitext(path)
     img_list = save_images(sprite, images_dir)
     with open(path, 'w') as f:
-        f.write(_get_images_text(sprite, img_list))
+        f.write(_get_images_text(sprite, img_list, os.path.dirname(path)))
         if sprite.has_animations:
             f.write('\n')
             f.write(FRAMES_HELP + '\n')
