@@ -92,10 +92,9 @@ ANIMATIONS_HELP = f"""\
 ;"""
 
 
-def _parse_image(line, root_dir):
-    """Return a valid PIL Image object from an image text line."""
+def _parse_image(values, root_dir):
+    """Return PIL Image object from values parsed from image text line"""
     # TODO: Turn the ImageDetails into a PIL Image object.
-    values = [v.strip() for v in line.split(',')]
     image = {}
     try:
         image['image_path'] = os.path.join(root_dir, values[0])
@@ -151,9 +150,8 @@ def _parse_image(line, root_dir):
     return ImageDetails(**image)
 
 
-def _parse_frame(line, num_images):
-    """Return a valid sprite.objects.Frame from a frame text line."""
-    values = [v.strip() for v in line.split(',')]
+def _parse_frame(values, num_images):
+    """Return sprite.objects.Frame from values parsed from frame text line"""
     frame = {}
     try:
         frame['image'] = int(values[0])
@@ -192,15 +190,17 @@ def _parse_frame(line, num_images):
     return objects.Frame(**frame)
 
 
-def _parse_animation(line, num_frames):
-    """Return a valid frame index number from an animation text line."""
+def _parse_animation(values, num_frames):
+    """Return frame index from values parsed from animation text line"""
     try:
-        anim_index = int(line)
+        anim_index = int(values[0])
         if anim_index < 0 or anim_index >= num_frames:
             raise ValueError
+    except IndexError:
+        raise ValueError(f'Animation misses frame index value.')
     except ValueError:
         raise ValueError(
-            f'Animation has invalid frame index. Found "{line}".'
+            f'Animation has invalid frame index. Found "{values[0]}".'
             f' Expected an integer from 0 to {num_frames - 1}.')
     return anim_index
 
@@ -248,14 +248,15 @@ def load(path):
                             f' {IMAGES_HEADER} and {FRAMES_HEADER}.')
                     in_section = Section.ANIMATIONS
                 else:
+                    values = [v.strip() for v in stripped_line.split(',')]
                     if in_section == Section.IMAGES:
-                        images.append(_parse_image(stripped_line, root_dir))
+                        images.append(_parse_image(values, root_dir))
                     elif in_section == Section.FRAMES:
                         frames.append(
-                            _parse_frame(stripped_line, len(images)))
+                            _parse_frame(values, len(images)))
                     elif in_section == Section.ANIMATIONS:
-                        animations.append(_parse_animation(
-                            stripped_line, len(frames)))
+                        animations.append(
+                            _parse_animation(values, len(frames)))
             except ValueError as e:
                 sys.exit(f'Error while loading {path}, line {line_no}:\n{e}')
     return objects.Sprite(images, frames, animations)
