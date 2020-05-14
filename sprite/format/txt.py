@@ -413,7 +413,7 @@ def save_image(sprite, path, indexes, borders=True):
 
 
 # TODO: Move this to the Sprite object.
-def save_images(sprite, images_dir, storyboard=True, borders=True):
+def save_images(sprite, images_dir, borders=True):
     """Save PNGs for the sprite object and return list of ImageDetails
 
     The returned list corresponds exactly to the list in sprite.images.
@@ -422,46 +422,41 @@ def save_images(sprite, images_dir, storyboard=True, borders=True):
     os.makedirs(images_dir)
 
     all_images = [None] * len(sprite.images)
-    if storyboard:
-        if sprite.has_animations:
-            seen_animations = []
-            for n, start_frame in enumerate(sprite.animation_index):
-                if start_frame in seen_animations:
-                    continue
-                seen_animations.append(start_frame)
-                # All images that have not already been saved:
-                anim_images = [
-                    i for i in get_images_for_animation(sprite, start_frame)
-                    if all_images[i] is None
-                ]
-                if anim_images:
-                    image_path = os.path.join(
-                        images_dir, f'animation-{n:03d}.png')
-                    image_details = save_image(
-                        sprite, image_path, anim_images, borders)
-                    for i, img in enumerate(anim_images):
-                        all_images[img] = image_details[i]
-            # TODO: What to do with all the None still in all_images? Those
-            # were images that were not used in animations (or only in end
-            # frames). Write them together in a leftovers file?
-            # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
-        else:
-            static_images = range(len(sprite.images))
-            directions = 5  # facing directions per unit
-            unit = 0
-            while static_images:
-                image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
-                current_images = static_images[0:directions]
+    if sprite.has_animations:
+        seen_animations = []
+        for n, start_frame in enumerate(sprite.animation_index):
+            if start_frame in seen_animations:
+                continue
+            seen_animations.append(start_frame)
+            # All images that have not already been saved:
+            anim_images = [
+                i for i in get_images_for_animation(sprite, start_frame)
+                if all_images[i] is None
+            ]
+            if anim_images:
+                image_path = os.path.join(
+                    images_dir, f'animation-{n:03d}.png')
                 image_details = save_image(
-                    sprite, image_path, current_images, borders)
-                for n, img in enumerate(current_images):
-                    all_images[img] = image_details[n]
-                static_images = static_images[directions:]
-                unit += 1
+                    sprite, image_path, anim_images, borders)
+                for i, img in enumerate(anim_images):
+                    all_images[img] = image_details[i]
+        # TODO: What to do with all the None still in all_images? Those
+        # were images that were not used in animations (or only in end
+        # frames). Write them together in a leftovers file?
+        # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
     else:
-        for img in sprite.images:
-            # TODO: Write each image to PNG and add ImageDetails to all_images.
-            pass
+        static_images = range(len(sprite.images))
+        directions = 5  # facing directions per unit
+        unit = 0
+        while static_images:
+            image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
+            current_images = static_images[0:directions]
+            image_details = save_image(
+                sprite, image_path, current_images, borders)
+            for n, img in enumerate(current_images):
+                all_images[img] = image_details[n]
+            static_images = static_images[directions:]
+            unit += 1
     return all_images
 
 
