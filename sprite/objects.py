@@ -45,18 +45,18 @@ class Sprite(object):
         animation_index - list of indexes into the 'frames' list.
 
         frames and animation_index are optional, since animations are
-        optional in sprite files, but if one of them is specified, both of them
+        optional in sprite files, but if one of them is non-empty, both of them
         need to be specified.
         """
 
-        if (frames is None) != (animation_index is None):
+        if bool(frames) != bool(animation_index):
             raise ValueError()
 
         self.images = images
         self.frames = frames
         self.animation_index = animation_index
 
-        self.has_animations = self.frames is not None
+        self.has_animations = bool(self.frames)
 
         if self.has_animations:
             if len(self.animation_index) == 32:
