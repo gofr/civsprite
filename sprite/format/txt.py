@@ -37,11 +37,37 @@ IMAGES_HELP = """\
 ; coordinates. If the mask path is empty (whitespace only), it will use the
 ; same file path as that of the image.
 ;"""
-# TODO: Move this next to the Sprite object.
-# Make it a normal object. And require both paths to be absolute.
-ImageDetails = collections.namedtuple('ImageDetails', [
-    'image_path', 'image_x', 'image_y', 'width', 'height',
-    'mask_path', 'mask_x', 'mask_y'], defaults=(None, None, None))
+
+
+# TODO: Move this next to the Sprite object?
+class ImageDetails(object):
+    def __init__(self, image_path, image_x, image_y, width, height,
+                 mask_path=None, mask_x=None, mask_y=None):
+        assert os.path.isabs(image_path)
+        assert (type(image_x) == type(image_y) == type(width) == type(height)
+                == int)
+        if mask_path is None:
+            assert mask_x is None and mask_y is None
+        else:
+            assert os.path.isabs(mask_path)
+            assert type(mask_x) == type(mask_y) == int
+
+        self.image_path = image_path
+        self.image_x = image_x
+        self.image_y = image_y
+        self.width = width
+        self.height = height
+
+        self.mask_path = mask_path
+        self.mask_x = mask_x
+        self.mask_y = mask_y
+
+        # Bounding boxes for PIL (left, top, right, bottom):
+        self.image_box = (image_x, image_y, image_x + width, image_y + height)
+        self.mask_box = None
+        if self.mask_path:
+            self.mask_box = (mask_x, mask_y, mask_x + width, mask_y + height)
+
 
 FRAMES_HEADER = '@FRAMES'
 FRAMES_HELP = f"""\
