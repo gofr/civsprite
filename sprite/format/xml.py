@@ -232,8 +232,8 @@ def save(sprite, path):
 
     for i, image in enumerate(sprite.images):
         rel_image_file_path = 'sprite-{}.png'.format(i)
-        image.convert('RGB').save(
-            os.path.join(abs_base_dir, rel_image_file_path))
+        with open(os.path.join(abs_base_dir, rel_image_file_path), 'xb') as f:
+            image.convert('RGB').save(f)
 
         tag = doc.createElement('image')
         tag.setAttribute('id', _xml_id('img', i))
@@ -244,7 +244,9 @@ def save(sprite, path):
             rel_mask_file_path = 'sprite-{}-mask.png'.format(i)
             mask = Image.new('1', image.size, None)
             mask.putdata(mask_data)
-            mask.save(os.path.join(abs_base_dir, rel_mask_file_path))
+            with open(
+                    os.path.join(abs_base_dir, rel_mask_file_path), 'xb') as f:
+                mask.save(f)
             tag.setAttribute('mask', _path_to_url(rel_mask_file_path))
 
         root.appendChild(tag)

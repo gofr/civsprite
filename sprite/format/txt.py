@@ -408,7 +408,8 @@ def save_image(sprite, path, indexes, borders=True):
             int(borders) + left if current_mask else None,
             2 * int(borders) + max_height if current_mask else None))
         left += sprite.images[i].width + int(borders)
-    total_image.save(path)
+    with open(path, 'xb') as f:
+        total_image.save(f)
     return all_image_details
 
 
