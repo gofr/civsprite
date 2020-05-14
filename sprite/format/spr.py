@@ -211,7 +211,7 @@ def save(sprite, path):
 
     first_image_offset = image_index_offset + 4 * (len(sprite.images) + 1)
 
-    with open(path, 'wb') as spr_file:
+    with open(path, 'xb') as spr_file:
         spr_file.write(header_struct.pack(
             animations_offset, image_index_offset, first_image_offset))
 

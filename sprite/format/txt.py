@@ -258,7 +258,7 @@ def load(path):
 
     root_dir = os.path.abspath(os.path.dirname(path))
 
-    with open(path) as text_file:
+    with open(path, 'rt') as text_file:
         in_section = None
         images = []
         frames = []
@@ -470,7 +470,7 @@ def save(sprite, path):
 
     images_dir, _ext = os.path.splitext(path)
     img_list = save_images(sprite, images_dir)
-    with open(path, 'w') as f:
+    with open(path, 'xt') as f:
         f.write(_get_images_text(sprite, img_list, os.path.dirname(path)))
         if sprite.has_animations:
             f.write('\n')

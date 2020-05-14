@@ -192,7 +192,7 @@ def load(path):
     # then see if it's all too slow or not.
 
     abs_base_dir = os.path.dirname(os.path.abspath(path))
-    with open(path, 'r') as xml_file:
+    with open(path, 'rt') as xml_file:
         xml_source = re.sub(r'\A.*?(?=<sprites>)', _DOCTYPE, xml_file.read(),
                             flags=re.DOTALL | re.MULTILINE)
 
@@ -259,5 +259,5 @@ def save(sprite, path):
             tag.setAttribute('start', _xml_id('frame', offset))
             root.appendChild(tag)
 
-    with open(abs_path, 'w') as f:
+    with open(abs_path, 'xt') as f:
         doc.writexml(f, addindent='    ', newl='\n')
