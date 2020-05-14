@@ -120,9 +120,8 @@ ANIMATIONS_HELP = f"""\
 ;"""
 
 
-def _parse_image(values, root_dir):
-    """Return PIL Image object from values parsed from image text line"""
-    # TODO: Turn the ImageDetails into a PIL Image object.
+def _parse_image_details(values, root_dir):
+    """Return ImageDetails object from values parsed from image text line"""
     image = {}
     try:
         image['image_path'] = os.path.abspath(
@@ -178,6 +177,20 @@ def _parse_image(values, root_dir):
         del image['x']
         del image['y']
     return ImageDetails(**image)
+
+
+def _load_image(details):
+    """Return PIL Image object from ImageDetails object"""
+    source = Image.open(details.image_path)
+    image = source.crop(details.image_box)
+    mask = 0
+    if details.mask_path is not None:
+        if details.mask_path != details.image_path:
+            source = Image.open(details.mask_path)
+        mask = source.crop(details.mask_box).convert('L').point(
+            lambda p: 255 if p else 0, '1')
+    image.putalpha(mask)
+    return image
 
 
 def _parse_frame(values, num_images):
@@ -280,7 +293,8 @@ def load(path):
                 else:
                     values = [v.strip() for v in stripped_line.split(',')]
                     if in_section == Section.IMAGES:
-                        images.append(_parse_image(values, root_dir))
+                        images.append(_load_image(
+                            _parse_image_details(values, root_dir)))
                     elif in_section == Section.FRAMES:
                         frames.append(
                             _parse_frame(values, len(images)))
