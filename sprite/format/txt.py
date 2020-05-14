@@ -451,6 +451,7 @@ def save_images(sprite, images_dir, borders=True):
         unit = 0
         while static_images:
             image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
+            # TODO: Also de-duplicate like I do in get_images_for_animation.
             current_images = static_images[0:directions]
             image_details = save_image(
                 sprite, image_path, current_images, borders)

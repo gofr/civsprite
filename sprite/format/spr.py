@@ -186,13 +186,25 @@ def load(path):
             # images can be used, or just use the first 1024?
             assert len(image_index) <= 1024
 
-        images = []
+        image_sources = []
+        image_offset_map = {}
         while True:
             image_offset = spr_file.tell() - images_offset
             if image_offset == image_index[-1]:  # final index points to EOF
+                image_index.pop()
                 break
-            images.append(_read_spr_image(spr_file))
+            image_offset_map[image_offset] = len(image_sources)
+            image_sources.append(_read_spr_image(spr_file))
 
+    # This is normally a no-op, but not e.g. for SpriteGen-generated spr files
+    # where the index refers to each image 5 times:
+    images = [image_sources[image_offset_map[x]] for x in image_index]
+    # TODO: After I simplified away the separate image_index list, I couldn't
+    # handle my SpriteGen sprite files anymore. I now brought back support for
+    # them to some extent with the above line, which means that Sprite objects
+    # can have duplicate Image objects in this list.
+    # I have not done enough testing to be sure that all my existing code can
+    # actually handle this properly. Check all loading and saving.
     return sprite.objects.Sprite(images, frames, animation_index)
 
 

@@ -41,6 +41,7 @@ class Sprite(object):
 
         images - list of RGBA PIL Image objects, where A is actually a 1-bit
                  channel used to represent the civilization color mask.
+                 Multiple items in this list can refer to the same object.
         frames - list of Frame objects.
         animation_index - list of indexes into the 'frames' list.
 
