@@ -199,12 +199,6 @@ def load(path):
     # This is normally a no-op, but not e.g. for SpriteGen-generated spr files
     # where the index refers to each image 5 times:
     images = [image_sources[image_offset_map[x]] for x in image_index]
-    # TODO: After I simplified away the separate image_index list, I couldn't
-    # handle my SpriteGen sprite files anymore. I now brought back support for
-    # them to some extent with the above line, which means that Sprite objects
-    # can have duplicate Image objects in this list.
-    # I have not done enough testing to be sure that all my existing code can
-    # actually handle this properly. Check all loading and saving.
     return sprite.objects.Sprite(images, frames, animation_index)
 
 
@@ -242,6 +236,9 @@ def save(sprite, path):
 
         image_index = [0]
         for img in sprite.images:
+            # TODO: Since images can contain duplicate objects, don't convert
+            # and write all of them. Only convert the ones we haven't already
+            # written. Re-add the same index instead for duplicates.
             image_data = _image_object_to_sprite_image(img)
             image_index.append(image_index[-1] + len(image_data))
             spr_file.write(image_data)

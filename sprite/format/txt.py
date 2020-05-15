@@ -40,6 +40,10 @@ IMAGES_HELP = """\
 
 
 # TODO: Move this next to the Sprite object?
+# TODO: Make this immutable again by turning into a subclassof namedtuple?
+# Use __new__ to add the customizations I've got here. See e.g.
+# https://stackoverflow.com/questions/8106900
+# https://stackoverflow.com/questions/45730316
 class ImageDetails(object):
     def __init__(self, image_path, image_x, image_y, width, height,
                  mask_path=None, mask_x=None, mask_y=None):
@@ -293,6 +297,9 @@ def load(path):
                 else:
                     values = [v.strip() for v in stripped_line.split(',')]
                     if in_section == Section.IMAGES:
+                        # TODO: If I've seen the same ImageDetails before,
+                        # don't _load_image() again, but just reference the
+                        # Image I already have.
                         images.append(_load_image(
                             _parse_image_details(values, root_dir)))
                     elif in_section == Section.FRAMES:
@@ -332,6 +339,8 @@ def _get_images_text(sprite, image_details, root_dir):
             [', Unit'], range(1 + len(sprite.images) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
     for n, image in enumerate(sprite.images):
+        # TODO: Get rid of if/else here once save_images() handles unused
+        # images and all items in image_details are defined.
         if image_details[n]:
             details = _image_details_to_text(image_details[n], root_dir)
         else:
@@ -371,6 +380,7 @@ def save_image(sprite, path, indexes, borders=True):
     max_height = 0
     any_masks = False
     for i in indexes:
+        # TODO: Skip if sprite.images[i] is an image I've already seen.
         total_width += sprite.images[i].width + int(borders)
         max_height = max(max_height, sprite.images[i].height)
         any_masks = any_masks or 255 in sprite.images[i].getdata(3)
@@ -380,6 +390,8 @@ def save_image(sprite, path, indexes, borders=True):
     total_image = Image.new('RGB', (total_width, total_height), background)
     left = 0
     for n, i in enumerate(indexes):
+        # TODO: If sprite.images[i] is an image I've already added, don't add
+        # it again, but only add the same ImageDetails to all_image_details.
         current_mask = None
         if any_masks:
             current_mask = Image.new('1', sprite.images[i].size, None)
@@ -447,13 +459,16 @@ def save_images(sprite, images_dir, borders=True):
         # were images that were not used in animations (or only in end
         # frames). Write them together in a leftovers file?
         # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
+        # * Use itertools.groupby() to loop over all_images. What's the length
+        #   of the None sequences in the existing sprite files? If this
+        #   helps group the missing images in a manageable way, put these
+        #   sequences together in unused-NNN.png files.
     else:
         static_images = range(len(sprite.images))
         directions = 5  # facing directions per unit
         unit = 0
         while static_images:
             image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
-            # TODO: Also de-duplicate like I do in get_images_for_animation.
             current_images = static_images[0:directions]
             image_details = save_image(
                 sprite, image_path, current_images, borders)
