@@ -336,9 +336,9 @@ def _get_images_text(sprite, image_details, root_dir):
         # images. Don't break if someone decides they want to write a funny
         # .spr file that does not have a multiple of 5 images.
         titles = itertools.product(
-            [', Unit'], range(1 + len(sprite.images) // 5),
+            [', Unit'], range(1 + len(image_details) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
-    for n, image in enumerate(sprite.images):
+    for n in range(len(image_details)):
         # TODO: Get rid of if/else here once save_images() handles unused
         # images and all items in image_details are defined.
         if image_details[n]:
