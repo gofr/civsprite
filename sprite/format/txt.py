@@ -362,6 +362,8 @@ def save_image(sprite, path, indexes, borders=True):
 
     The items in the returned list correspond to the indexes passed in.
     """
+    background = (255, 0, 255)
+    border_color = (0, 255, 0)
     all_image_details = []
     if not indexes:
         return all_image_details
@@ -375,7 +377,7 @@ def save_image(sprite, path, indexes, borders=True):
     total_height = max_height + 2 * int(borders)
     if any_masks:
         total_height += max_height + int(borders)
-    total_image = Image.new('RGB', (total_width, total_height), (255, 0, 255))
+    total_image = Image.new('RGB', (total_width, total_height), background)
     left = 0
     for n, i in enumerate(indexes):
         current_mask = None
@@ -384,10 +386,10 @@ def save_image(sprite, path, indexes, borders=True):
             current_mask.putdata(sprite.images[i].getdata(3))
             if borders:
                 current_mask = ImageOps.expand(
-                    current_mask.convert('RGB'), int(borders), (0, 255, 0))
+                    current_mask.convert('RGB'), int(borders), border_color)
         if borders:
             current_image = ImageOps.expand(
-                sprite.images[i], int(borders), (0, 255, 0))
+                sprite.images[i], int(borders), border_color)
         else:
             current_image = sprite.images[i]
         image_box = (
