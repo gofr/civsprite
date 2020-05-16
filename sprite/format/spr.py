@@ -234,14 +234,20 @@ def save(sprite, path):
         # Skip past image index for now:
         spr_file.seek(first_image_offset)
 
-        image_index = [0]
-        for img in sprite.images:
-            # TODO: Since images can contain duplicate objects, don't convert
-            # and write all of them. Only convert the ones we haven't already
-            # written. Re-add the same index instead for duplicates.
-            image_data = _image_object_to_sprite_image(img)
-            image_index.append(image_index[-1] + len(image_data))
-            spr_file.write(image_data)
+        image_index = []
+        current_end = 0
+        for n, img in enumerate(sprite.images):
+            first_occurrence = sprite.images.index(img)
+            if first_occurrence == n:
+                image_data = _image_object_to_sprite_image(img)
+                image_index.append(current_end)
+                spr_file.write(image_data)
+                current_end += len(image_data)
+            else:
+                # We've already written this image. Just add the same offset
+                # to the index again.
+                image_index.append(image_index[first_occurrence])
+        image_index.append(current_end)  # EOF
 
         # Go back and write the image index:
         spr_file.seek(image_index_offset)

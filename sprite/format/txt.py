@@ -40,13 +40,13 @@ IMAGES_HELP = """\
 
 
 # TODO: Move this next to the Sprite object?
-# TODO: Make this immutable again by turning into a subclassof namedtuple?
-# Use __new__ to add the customizations I've got here. See e.g.
-# https://stackoverflow.com/questions/8106900
-# https://stackoverflow.com/questions/45730316
-class ImageDetails(object):
-    def __init__(self, image_path, image_x, image_y, width, height,
-                 mask_path=None, mask_x=None, mask_y=None):
+class ImageDetails(collections.namedtuple('ImageDetails', [
+        'image_path', 'image_x', 'image_y', 'width', 'height',
+        'mask_path', 'mask_x', 'mask_y', 'image_box', 'mask_box'])):
+    __slots__ = ()
+
+    def __new__(cls, image_path, image_x, image_y, width, height,
+                mask_path=None, mask_x=None, mask_y=None):
         assert os.path.isabs(image_path)
         assert (type(image_x) == type(image_y) == type(width) == type(height)
                 == int)
@@ -56,21 +56,26 @@ class ImageDetails(object):
             assert os.path.isabs(mask_path)
             assert type(mask_x) == type(mask_y) == int
 
-        self.image_path = image_path
-        self.image_x = image_x
-        self.image_y = image_y
-        self.width = width
-        self.height = height
-
-        self.mask_path = mask_path
-        self.mask_x = mask_x
-        self.mask_y = mask_y
-
         # Bounding boxes for PIL (left, top, right, bottom):
-        self.image_box = (image_x, image_y, image_x + width, image_y + height)
-        self.mask_box = None
-        if self.mask_path:
-            self.mask_box = (mask_x, mask_y, mask_x + width, mask_y + height)
+        image_box = (image_x, image_y, image_x + width, image_y + height)
+        mask_box = None
+        if mask_path:
+            mask_box = (mask_x, mask_y, mask_x + width, mask_y + height)
+
+        return super().__new__(
+            cls, image_path, image_x, image_y, width, height,
+            mask_path, mask_x, mask_y, image_box, mask_box)
+
+    def __eq__(self, other):
+        return (
+            self.image_path == other.image_path and
+            self.image_box == other.image_box and
+            self.mask_path == other.mask_path and
+            self.mask_box == other.mask_box
+        )
+
+    def __hash__(self):
+        return hash(tuple(self))
 
 
 FRAMES_HEADER = '@FRAMES'
@@ -268,6 +273,7 @@ def load(path):
         frames = []
         animations = []
         line_no = 0
+        loaded_images = {}
 
         for line in text_file:
             try:
@@ -297,11 +303,12 @@ def load(path):
                 else:
                     values = [v.strip() for v in stripped_line.split(',')]
                     if in_section == Section.IMAGES:
-                        # TODO: If I've seen the same ImageDetails before,
-                        # don't _load_image() again, but just reference the
-                        # Image I already have.
-                        images.append(_load_image(
-                            _parse_image_details(values, root_dir)))
+                        image_details = _parse_image_details(values, root_dir)
+                        if image_details in loaded_images:
+                            images.append(images[loaded_images[image_details]])
+                        else:
+                            images.append(_load_image(image_details))
+                            loaded_images[image_details] = len(images) - 1
                     elif in_section == Section.FRAMES:
                         frames.append(
                             _parse_frame(values, len(images)))
@@ -350,63 +357,56 @@ def _get_images_text(sprite, image_details, root_dir):
 
 
 # TODO: Move this to the Sprite object.
-def get_images_for_animation(sprite, start_frame):
-    """Return list of images used in animation starting with start_frame"""
-    # Create a unique list of the indexes of images used in this animation,
-    # excluding the end frame which isn't displayed:
+def get_images_in_animation(sprite, start_frame):
+    """Return list of unique images in animation starting with start_frame"""
     images = []
     for frame in sprite.frames[start_frame:]:
+        # Exclude the end frame because it's not displayed:
         if frame.end:
             break
-        if frame.image not in images:
-            images.append(frame.image)
+        if sprite.images[frame.image] not in images:
+            images.append(sprite.images[frame.image])
         if frame.end_loop:
             break
     return images
 
 
-# TODO: Move this to the Sprite object.
-def save_image(sprite, path, indexes, borders=True):
-    """Save images marked by indexes to path and return list of ImageDetails
+def save_image(images, path, borders=True):
+    """Save list of Image objects to path and return list of ImageDetails
 
-    The items in the returned list correspond to the indexes passed in.
+    The items in the returned list correspond to the images passed in.
     """
     background = (255, 0, 255)
     border_color = (0, 255, 0)
     all_image_details = []
-    if not indexes:
+    if not images:
         return all_image_details
     total_width = int(borders)
     max_height = 0
     any_masks = False
-    for i in indexes:
-        # TODO: Skip if sprite.images[i] is an image I've already seen.
-        total_width += sprite.images[i].width + int(borders)
-        max_height = max(max_height, sprite.images[i].height)
-        any_masks = any_masks or 255 in sprite.images[i].getdata(3)
+    for img in images:
+        total_width += img.width + int(borders)
+        max_height = max(max_height, img.height)
+        any_masks = any_masks or 255 in img.getdata(3)
     total_height = max_height + 2 * int(borders)
     if any_masks:
         total_height += max_height + int(borders)
     total_image = Image.new('RGB', (total_width, total_height), background)
     left = 0
-    for n, i in enumerate(indexes):
-        # TODO: If sprite.images[i] is an image I've already added, don't add
-        # it again, but only add the same ImageDetails to all_image_details.
+    for img in images:
         current_mask = None
         if any_masks:
-            current_mask = Image.new('1', sprite.images[i].size, None)
-            current_mask.putdata(sprite.images[i].getdata(3))
+            current_mask = Image.new('1', img.size, None)
+            current_mask.putdata(img.getdata(3))
             if borders:
                 current_mask = ImageOps.expand(
                     current_mask.convert('RGB'), int(borders), border_color)
         if borders:
             current_image = ImageOps.expand(
-                sprite.images[i], int(borders), border_color)
+                img, int(borders), border_color)
         else:
-            current_image = sprite.images[i]
-        image_box = (
-            left, 0,
-            left + current_image.width, current_image.height)
+            current_image = img
+        image_box = (left, 0, left + current_image.width, current_image.height)
         total_image.paste(current_image, image_box)
         if current_mask:
             mask_box = (
@@ -417,11 +417,11 @@ def save_image(sprite, path, indexes, borders=True):
         all_image_details.append(ImageDetails(
             os.path.abspath(path),
             int(borders) + left, int(borders),
-            sprite.images[i].width, sprite.images[i].height,
+            img.width, img.height,
             os.path.abspath(path) if current_mask else None,
             int(borders) + left if current_mask else None,
             2 * int(borders) + max_height if current_mask else None))
-        left += sprite.images[i].width + int(borders)
+        left += img.width + int(borders)
     with open(path, 'xb') as f:
         total_image.save(f)
     return all_image_details
@@ -436,7 +436,21 @@ def save_images(sprite, images_dir, borders=True):
     # TODO: User-friendly error-handling and possibility to override:
     os.makedirs(images_dir)
 
-    all_images = [None] * len(sprite.images)
+    saved_details = [None] * len(sprite.images)
+    saved_images = []
+
+    def save_and_update_progress(image_list, image_path):
+        image_details = save_image(image_list, image_path, borders)
+        saved_images.extend(image_list)
+        for n, img in enumerate(image_list):
+            # XXX: This is maybe a bit too happy deduplicating things.
+            # E.g. similar animations that share frames "accidentally" may get
+            # confusing storyboards where frames seem to be missing, and
+            # confusing text files with images taken from random other places.
+            indexes_to_update = sprite.find_matching_image_indexes(img)
+            for idx in indexes_to_update:
+                saved_details[idx] = image_details[n]
+
     if sprite.has_animations:
         seen_animations = []
         for n, start_frame in enumerate(sprite.animation_index):
@@ -445,38 +459,34 @@ def save_images(sprite, images_dir, borders=True):
             seen_animations.append(start_frame)
             # All images that have not already been saved:
             anim_images = [
-                i for i in get_images_for_animation(sprite, start_frame)
-                if all_images[i] is None
+                img for img in get_images_in_animation(sprite, start_frame)
+                if img not in saved_images
             ]
             if anim_images:
-                image_path = os.path.join(
-                    images_dir, f'animation-{n:03d}.png')
-                image_details = save_image(
-                    sprite, image_path, anim_images, borders)
-                for i, img in enumerate(anim_images):
-                    all_images[img] = image_details[i]
-        # TODO: What to do with all the None still in all_images? Those
+                image_path = os.path.join(images_dir, f'animation-{n:03d}.png')
+                save_and_update_progress(anim_images, image_path)
+        # TODO: What to do with all the None still in saved_details? Those
         # were images that were not used in animations (or only in end
         # frames). Write them together in a leftovers file?
         # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
-        # * Use itertools.groupby() to loop over all_images. What's the length
+        # * Use itertools.groupby() to loop over saved_details. What's the length
         #   of the None sequences in the existing sprite files? If this
         #   helps group the missing images in a manageable way, put these
         #   sequences together in unused-NNN.png files.
     else:
-        static_images = range(len(sprite.images))
+        static_images = list(sprite.images)
         directions = 5  # facing directions per unit
         unit = 0
         while static_images:
             image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
-            current_images = static_images[0:directions]
-            image_details = save_image(
-                sprite, image_path, current_images, borders)
-            for n, img in enumerate(current_images):
-                all_images[img] = image_details[n]
+            current_images = []
+            for img in static_images[0:directions]:
+                if img not in saved_images and img not in current_images:
+                    current_images.append(img)
+            save_and_update_progress(current_images, image_path)
             static_images = static_images[directions:]
             unit += 1
-    return all_images
+    return saved_details
 
 
 def save(sprite, path):
