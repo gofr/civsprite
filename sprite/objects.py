@@ -67,6 +67,12 @@ class Sprite(object):
         else:
             self.type = SpriteType.STATIC
 
-    def find_matching_image_indexes(self, image):
-        """Return set of all indexes of images that equal 'image'"""
-        return set(i for i, img in enumerate(self.images) if img == image)
+    def find_matching_image_indexes(self, image, identical=True):
+        """Return generator of indexes of images equal to 'image'
+
+        If identity is True, return the indexes only of identical objects.
+        If it is False, return the indexes of all images that look the same.
+        """
+        def test(img):
+            return img is image if identical else img == image
+        return (i for i, img in enumerate(self.images) if test(img))

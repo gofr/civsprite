@@ -237,7 +237,7 @@ def save(sprite, path):
         image_index = []
         current_end = 0
         for n, img in enumerate(sprite.images):
-            first_occurrence = sprite.images.index(img)
+            first_occurrence = next(sprite.find_matching_image_indexes(img))
             if first_occurrence == n:
                 image_data = _image_object_to_sprite_image(img)
                 image_index.append(current_end)

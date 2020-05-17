@@ -364,7 +364,11 @@ def get_images_in_animation(sprite, start_frame):
         # Exclude the end frame because it's not displayed:
         if frame.end:
             break
-        if sprite.images[frame.image] not in images:
+        # Use all() because a plain "in" does an equality check, not an
+        # identity check, which would then exclude frames that look the same
+        # in other animations. We now potentially save more duplicate images,
+        # but hopefully cause less confusion for animation authors.
+        if all(i is not sprite.images[frame.image] for i in images):
             images.append(sprite.images[frame.image])
         if frame.end_loop:
             break
@@ -439,16 +443,11 @@ def save_images(sprite, images_dir, borders=True):
     saved_details = [None] * len(sprite.images)
     saved_images = []
 
-    def save_and_update_progress(image_list, image_path):
+    def save_and_update_progress(image_list, image_path, identical):
         image_details = save_image(image_list, image_path, borders)
         saved_images.extend(image_list)
         for n, img in enumerate(image_list):
-            # XXX: This is maybe a bit too happy deduplicating things.
-            # E.g. similar animations that share frames "accidentally" may get
-            # confusing storyboards where frames seem to be missing, and
-            # confusing text files with images taken from random other places.
-            indexes_to_update = sprite.find_matching_image_indexes(img)
-            for idx in indexes_to_update:
+            for idx in sprite.find_matching_image_indexes(img, identical):
                 saved_details[idx] = image_details[n]
 
     if sprite.has_animations:
@@ -460,11 +459,13 @@ def save_images(sprite, images_dir, borders=True):
             # All images that have not already been saved:
             anim_images = [
                 img for img in get_images_in_animation(sprite, start_frame)
-                if img not in saved_images
+                # Check identity, not just equality:
+                if all(i is not img for i in saved_images)
             ]
             if anim_images:
                 image_path = os.path.join(images_dir, f'animation-{n:03d}.png')
-                save_and_update_progress(anim_images, image_path)
+                save_and_update_progress(
+                    anim_images, image_path, identical=True)
         # TODO: What to do with all the None still in saved_details? Those
         # were images that were not used in animations (or only in end
         # frames). Write them together in a leftovers file?
@@ -481,9 +482,13 @@ def save_images(sprite, images_dir, borders=True):
             image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
             current_images = []
             for img in static_images[0:directions]:
+                # Doing equality check here unlike for animations, because
+                # I don't expect de-duplicating equal images in static sprites
+                # will be as confusing.
                 if img not in saved_images and img not in current_images:
                     current_images.append(img)
-            save_and_update_progress(current_images, image_path)
+            save_and_update_progress(
+                current_images, image_path, identical=False)
             static_images = static_images[directions:]
             unit += 1
     return saved_details
