@@ -346,12 +346,7 @@ def _get_images_text(sprite, image_details, root_dir):
             [', Unit'], range(1 + len(image_details) // 5),
             ['N', 'NE', 'E', 'SE', 'S'])
     for n in range(len(image_details)):
-        # TODO: Get rid of if/else here once save_images() handles unused
-        # images and all items in image_details are defined.
-        if image_details[n]:
-            details = _image_details_to_text(image_details[n], root_dir)
-        else:
-            details = 'unused'
+        details = _image_details_to_text(image_details[n], root_dir)
         text += f'{details} ; {n}{" ".join(map(str, next(titles, "")))}\n'
     return text
 
@@ -466,14 +461,18 @@ def save_images(sprite, images_dir, borders=True):
                 image_path = os.path.join(images_dir, f'animation-{n:03d}.png')
                 save_and_update_progress(
                     anim_images, image_path, identical=True)
-        # TODO: What to do with all the None still in saved_details? Those
-        # were images that were not used in animations (or only in end
-        # frames). Write them together in a leftovers file?
-        # There can be quite a lot of these. E.g. 136 in Scifi/Unit46.spr.
-        # * Use itertools.groupby() to loop over saved_details. What's the length
-        #   of the None sequences in the existing sprite files? If this
-        #   helps group the missing images in a manageable way, put these
-        #   sequences together in unused-NNN.png files.
+        unused = [
+            sprite.images[n] for n, detail in enumerate(saved_details)
+            if detail is None
+        ]
+        row_size = 20
+        for i in range(0, len(unused), row_size):
+            image_path = os.path.join(
+                images_dir, f'unused-{i // row_size:03d}.png')
+            # This must also use identical=True, otherwise it could replace
+            # the details from a used image by an unused image.
+            save_and_update_progress(
+                unused[i:i + row_size], image_path, identical=True)
     else:
         static_images = list(sprite.images)
         directions = 5  # facing directions per unit
@@ -491,6 +490,7 @@ def save_images(sprite, images_dir, borders=True):
                 current_images, image_path, identical=False)
             static_images = static_images[directions:]
             unit += 1
+    assert all(saved_details), "Not all images were saved"
     return saved_details
 
 
