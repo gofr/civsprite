@@ -130,20 +130,20 @@ def _int_to_frame(frame):
     image = frame & 1023
     transparency = (frame >> 10) & 7
     start = bool((frame >> 13) & 1)
-    end_loop = bool((frame >> 14) & 1)
+    loop = bool((frame >> 14) & 1)
     mirror = bool((frame >> 15) & 1)
     end = bool((frame >> 24) & 1)
     continuous = bool((frame >> 25) & 1)
 
     return sprite.objects.Frame(
-        image, transparency, start, end_loop, mirror, end, continuous)
+        image, transparency, start, loop, mirror, end, continuous)
 
 
 def _frame_to_int(frame):
     """Return an integer frame value for a sprite.objects.Frame object."""
 
     return ((frame.image & 1023) | ((frame.transparency & 7) << 10) |
-            (frame.start << 13) | (frame.end_loop << 14) |
+            (frame.start << 13) | (frame.loop << 14) |
             (frame.mirror << 15) | (0x06 << 16) | (frame.end << 24) |
             (frame.continuous << 25))
 

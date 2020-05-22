@@ -195,9 +195,6 @@ def _parse_frame(values, num_images):
                 f'Frame has invalid {prop} value. Found "{values[index]}".'
                 ' Expected 0 or 1.')
         index += 1
-    # Turn human-readable name into object property name:
-    frame['end_loop'] = frame['loop']
-    del frame['loop']
     return Frame(**frame)
 
 

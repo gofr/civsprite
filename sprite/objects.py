@@ -55,7 +55,7 @@ class ImageDetails(collections.namedtuple('ImageDetails', [
 
 Frame = collections.namedtuple('Frame', [
     'image', 'transparency',
-    'start', 'end_loop', 'mirror', 'end', 'continuous'])
+    'start', 'loop', 'mirror', 'end', 'continuous'])
 """Object representation for an animation frame used by the Sprite object.
 
 image - integer value in the range [0,1023], index into the images list in
@@ -63,7 +63,7 @@ image - integer value in the range [0,1023], index into the images list in
 transparency - integer value in the range [0,7], 0 mean fully opaque, 7 means
                7/8 (87.5%) transparent.
 start - True for an animation start frame.
-end_loop - True for the last frame in a loop (loops back to last start).
+loop - True for the last frame in a loop (loops back to last start).
 mirror - True for frames that should be horizontally mirrored.
 end - True for the last frame in an animation (this frame is not displayed)
 continuous - True for all frames in a continuously repeating loop
@@ -121,7 +121,7 @@ class Sprite(object):
             # images, but hopefully cause less confusion for animation authors.
             if all(i is not self.images[frame.image] for i in images):
                 images.append(self.images[frame.image])
-            if frame.end_loop:
+            if frame.loop:
                 break
         return images
 

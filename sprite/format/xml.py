@@ -25,7 +25,7 @@ _DOCTYPE = """<?xml version="1.0"?>
         img CDATA #REQUIRED
         transparency NMTOKEN #IMPLIED
         start (yes|no) "yes"
-        endloop (yes|no) "yes"
+        loop (yes|no) "yes"
         mirror (yes|no) "yes"
         end (yes|no) "yes"
         continuous (yes|no) "yes"
@@ -89,7 +89,7 @@ def _append_animation_frame_xml(node, frame, id):
     frame.transparency and frame_node.setAttribute('transparency',
                                                    str(frame.transparency))
     frame.start and frame_node.setAttribute('start', '')
-    frame.end_loop and frame_node.setAttribute('endloop', '')
+    frame.loop and frame_node.setAttribute('loop', '')
     frame.mirror and frame_node.setAttribute('mirror', '')
     frame.end and frame_node.setAttribute('end', '')
     frame.continuous and frame_node.setAttribute('continuous', '')
@@ -170,13 +170,13 @@ def _animation_frame(frame_node, image_list):
             raise ValueError()
 
     start = frame_node.hasAttribute('start')
-    end_loop = frame_node.hasAttribute('endloop')
+    loop = frame_node.hasAttribute('loop')
     mirror = frame_node.hasAttribute('mirror')
     end = frame_node.hasAttribute('end')
     continuous = frame_node.hasAttribute('continuous')
 
     return sprite.objects.Frame(
-        image_index, transparency, start, end_loop, mirror, end, continuous)
+        image_index, transparency, start, loop, mirror, end, continuous)
 
 
 def load(path):
