@@ -5,14 +5,13 @@ itself uses.
 """
 
 import enum
-import collections
 import itertools
 import os
 import sys
 
-from PIL import Image, ImageOps
+from PIL import Image
 
-import sprite.objects as objects
+from sprite.objects import ImageDetails, Frame, Sprite, SpriteType
 
 
 IMAGES_HEADER = '@IMAGES'
@@ -37,46 +36,6 @@ IMAGES_HELP = """\
 ; coordinates. If the mask path is empty (whitespace only), it will use the
 ; same file path as that of the image.
 ;"""
-
-
-# TODO: Move this next to the Sprite object?
-class ImageDetails(collections.namedtuple('ImageDetails', [
-        'image_path', 'image_x', 'image_y', 'width', 'height',
-        'mask_path', 'mask_x', 'mask_y', 'image_box', 'mask_box'])):
-    __slots__ = ()
-
-    def __new__(cls, image_path, image_x, image_y, width, height,
-                mask_path=None, mask_x=None, mask_y=None):
-        assert os.path.isabs(image_path)
-        assert (type(image_x) == type(image_y) == type(width) == type(height)
-                == int)
-        if mask_path is None:
-            assert mask_x is None and mask_y is None
-        else:
-            assert os.path.isabs(mask_path)
-            assert type(mask_x) == type(mask_y) == int
-
-        # Bounding boxes for PIL (left, top, right, bottom):
-        image_box = (image_x, image_y, image_x + width, image_y + height)
-        mask_box = None
-        if mask_path:
-            mask_box = (mask_x, mask_y, mask_x + width, mask_y + height)
-
-        return super().__new__(
-            cls, image_path, image_x, image_y, width, height,
-            mask_path, mask_x, mask_y, image_box, mask_box)
-
-    def __eq__(self, other):
-        return (
-            self.image_path == other.image_path and
-            self.image_box == other.image_box and
-            self.mask_path == other.mask_path and
-            self.mask_box == other.mask_box
-        )
-
-    def __hash__(self):
-        return hash(tuple(self))
-
 
 FRAMES_HEADER = '@FRAMES'
 FRAMES_HELP = f"""\
@@ -203,7 +162,7 @@ def _load_image(details):
 
 
 def _parse_frame(values, num_images):
-    """Return sprite.objects.Frame from values parsed from frame text line"""
+    """Return Frame object from values parsed from frame text line"""
     frame = {}
     try:
         frame['image'] = int(values[0])
@@ -239,7 +198,7 @@ def _parse_frame(values, num_images):
     # Turn human-readable name into object property name:
     frame['end_loop'] = frame['loop']
     del frame['loop']
-    return objects.Frame(**frame)
+    return Frame(**frame)
 
 
 def _parse_animation(values, num_frames):
@@ -258,7 +217,7 @@ def _parse_animation(values, num_frames):
 
 
 def load(path):
-    """Load .txt file and return sprite.objects.Sprite object"""
+    """Load .txt file and return Sprite object"""
 
     class Section(enum.Enum):
         IMAGES = 1
@@ -317,7 +276,7 @@ def load(path):
                             _parse_animation(values, len(frames)))
             except ValueError as e:
                 sys.exit(f'Error while loading {path}, line {line_no}:\n{e}')
-    return objects.Sprite(images, frames, animations)
+    return Sprite(images, frames, animations)
 
 
 def _image_details_to_text(details, root_dir):
@@ -337,7 +296,7 @@ def _image_details_to_text(details, root_dir):
 def _get_images_text(sprite, image_details, root_dir):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
     titles = iter(())
-    if sprite.type == objects.SpriteType.STATIC:
+    if sprite.type == SpriteType.STATIC:
         # There are 5 images per unit. But use (1 + len) because it doesn't
         # matter if the titles iterator is longer than the actual number of
         # images. Don't break if someone decides they want to write a funny
@@ -351,154 +310,10 @@ def _get_images_text(sprite, image_details, root_dir):
     return text
 
 
-# TODO: Move this to the Sprite object.
-def get_images_in_animation(sprite, start_frame):
-    """Return list of unique images in animation starting with start_frame"""
-    images = []
-    for frame in sprite.frames[start_frame:]:
-        # Exclude the end frame because it's not displayed:
-        if frame.end:
-            break
-        # Use all() because a plain "in" does an equality check, not an
-        # identity check, which would then exclude frames that look the same
-        # in other animations. We now potentially save more duplicate images,
-        # but hopefully cause less confusion for animation authors.
-        if all(i is not sprite.images[frame.image] for i in images):
-            images.append(sprite.images[frame.image])
-        if frame.end_loop:
-            break
-    return images
-
-
-def save_image(images, path, borders=True):
-    """Save list of Image objects to path and return list of ImageDetails
-
-    The items in the returned list correspond to the images passed in.
-    """
-    background = (255, 0, 255)
-    border_color = (0, 255, 0)
-    all_image_details = []
-    if not images:
-        return all_image_details
-    total_width = int(borders)
-    max_height = 0
-    any_masks = False
-    for img in images:
-        total_width += img.width + int(borders)
-        max_height = max(max_height, img.height)
-        any_masks = any_masks or 255 in img.getdata(3)
-    total_height = max_height + 2 * int(borders)
-    if any_masks:
-        total_height += max_height + int(borders)
-    total_image = Image.new('RGB', (total_width, total_height), background)
-    left = 0
-    for img in images:
-        current_mask = None
-        if any_masks:
-            current_mask = Image.new('1', img.size, None)
-            current_mask.putdata(img.getdata(3))
-            if borders:
-                current_mask = ImageOps.expand(
-                    current_mask.convert('RGB'), int(borders), border_color)
-        if borders:
-            current_image = ImageOps.expand(
-                img, int(borders), border_color)
-        else:
-            current_image = img
-        image_box = (left, 0, left + current_image.width, current_image.height)
-        total_image.paste(current_image, image_box)
-        if current_mask:
-            mask_box = (
-                left, int(borders) + max_height,
-                left + current_mask.width,
-                int(borders) + max_height + current_mask.height)
-            total_image.paste(current_mask, mask_box)
-        all_image_details.append(ImageDetails(
-            os.path.abspath(path),
-            int(borders) + left, int(borders),
-            img.width, img.height,
-            os.path.abspath(path) if current_mask else None,
-            int(borders) + left if current_mask else None,
-            2 * int(borders) + max_height if current_mask else None))
-        left += img.width + int(borders)
-    with open(path, 'xb') as f:
-        total_image.save(f)
-    return all_image_details
-
-
-# TODO: Move this to the Sprite object.
-def save_images(sprite, images_dir, borders=True):
-    """Save PNGs for the sprite object and return list of ImageDetails
-
-    The returned list corresponds exactly to the list in sprite.images.
-    """
-    # TODO: User-friendly error-handling and possibility to override:
-    os.makedirs(images_dir)
-
-    saved_details = [None] * len(sprite.images)
-    saved_images = []
-
-    def save_and_update_progress(image_list, image_path, identical):
-        image_details = save_image(image_list, image_path, borders)
-        saved_images.extend(image_list)
-        for n, img in enumerate(image_list):
-            for idx in sprite.find_matching_image_indexes(img, identical):
-                saved_details[idx] = image_details[n]
-
-    if sprite.has_animations:
-        seen_animations = []
-        for n, start_frame in enumerate(sprite.animation_index):
-            if start_frame in seen_animations:
-                continue
-            seen_animations.append(start_frame)
-            # All images that have not already been saved:
-            anim_images = [
-                img for img in get_images_in_animation(sprite, start_frame)
-                # Check identity, not just equality:
-                if all(i is not img for i in saved_images)
-            ]
-            if anim_images:
-                image_path = os.path.join(images_dir, f'animation-{n:03d}.png')
-                save_and_update_progress(
-                    anim_images, image_path, identical=True)
-        unused = [
-            sprite.images[n] for n, detail in enumerate(saved_details)
-            if detail is None
-        ]
-        row_size = 20
-        for i in range(0, len(unused), row_size):
-            image_path = os.path.join(
-                images_dir, f'unused-{i // row_size:03d}.png')
-            # This must also use identical=True, otherwise it could replace
-            # the details from a used image by an unused image.
-            save_and_update_progress(
-                unused[i:i + row_size], image_path, identical=True)
-    else:
-        static_images = list(sprite.images)
-        directions = 5  # facing directions per unit
-        unit = 0
-        while static_images:
-            image_path = os.path.join(images_dir, f'unit-{unit:03d}.png')
-            current_images = []
-            for img in static_images[0:directions]:
-                # Doing equality check here unlike for animations, because
-                # I don't expect de-duplicating equal images in static sprites
-                # will be as confusing.
-                if img not in saved_images and img not in current_images:
-                    current_images.append(img)
-            save_and_update_progress(
-                current_images, image_path, identical=False)
-            static_images = static_images[directions:]
-            unit += 1
-    assert all(saved_details), "Not all images were saved"
-    return saved_details
-
-
 def save(sprite, path):
-    """Save sprite.objects.Sprite object 'sprite' to .txt file 'path'"""
+    """Save Sprite object 'sprite' to .txt file 'path'"""
 
-    images_dir, _ext = os.path.splitext(path)
-    img_list = save_images(sprite, images_dir)
+    img_list = sprite.save_as_pngs(os.path.splitext(path)[0])
     with open(path, 'xt') as f:
         f.write(_get_images_text(sprite, img_list, os.path.dirname(path)))
         if sprite.has_animations:
@@ -513,11 +328,11 @@ def save(sprite, path):
             f.write(ANIMATIONS_HELP + '\n')
             f.write(ANIMATIONS_HEADER + '\n')
             titles = None
-            if sprite.type == objects.SpriteType.UNIT:
+            if sprite.type == SpriteType.UNIT:
                 actions = ['Attack', 'Die', 'Idle', 'Move']
                 directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
                 titles = itertools.product(actions, directions)
-            elif sprite.type == objects.SpriteType.RESOURCES:
+            elif sprite.type == SpriteType.RESOURCES:
                 titles = itertools.product(
                     ['Map'], range(4),
                     ['Resource'], range(2),
