@@ -3,6 +3,7 @@
 import argparse
 import sys
 
+import sprite.format.json
 import sprite.format.spr
 import sprite.format.txt
 
@@ -25,6 +26,7 @@ def _input_format(name):
 
 def _output_format(name):
     output_formats = {
+        'json': sprite.format.json.save,
         'spr': sprite.format.spr.save,
         'txt': sprite.format.txt.save
     }
