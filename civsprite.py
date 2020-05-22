@@ -58,12 +58,12 @@ For example:
 * The following command would parse the Original game's static sprite file and
   convert it into a text description file plus all images saved as PNG images:
 
-{sys.argv[0]} "C:\Somewhere\Test of Time\Original\Static.spr" static.txt
+%(prog)s "C:\Somewhere\Test of Time\Original\Static.spr" static.txt
 
 * The following command would do the opposite. It would parse a static.txt file
   and using all the images it references create a new Static.spr:
 
-{sys.argv[0]} static.txt "C:\Somewhere\Test of Time\Original\Static.spr"
+%(prog)s static.txt "C:\Somewhere\Test of Time\Original\Static.spr"
 """)
     parser.add_argument(
         'input', type=_input_format,
