@@ -30,7 +30,7 @@ IMAGES_HELP = """\
 ;   mask path     = If the image uses a civ-specific color, the path to a
 ;                   black-and-white image that specifies which pixels of the
 ;                   above-mentioned image should be turned into the civ shade.
-;                   White = turn into civ's shade. Black = Don't change.
+;                   Black = Don't change. Everything else = use civ's color.
 ;
 ; If you don't use a mask, you can leave out the mask path and its x and y
 ; coordinates. If the mask path is empty (whitespace only), it will use the
