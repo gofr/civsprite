@@ -1,3 +1,4 @@
+import io
 import struct
 
 from PIL import Image, ImageChops
@@ -66,9 +67,8 @@ def _read_spr_image(spr_file):
     # empty lines below bounding box
     image_data.extend([bgcolor] * width * (height - bottom))
 
-    # TODO: Get rid of assert
-    assert size == 10
-    spr_file.read(10)
+    # Skip over the trailing 10 null bytes:
+    spr_file.seek(10, io.SEEK_CUR)
 
     image = Image.new('RGBA', (width, height), None)
     image.putdata(image_data)
