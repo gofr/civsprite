@@ -292,7 +292,7 @@ def _image_details_to_text(details, root_dir):
 
 def _get_images_text(sprite, image_details, root_dir):
     text = IMAGES_HELP + '\n' + IMAGES_HEADER + '\n'
-    titles = iter(())
+    titles = iter(())  # No titles for images used by animations
     if sprite.type == SpriteType.STATIC:
         # There are 5 images per unit. But use (1 + len) because it doesn't
         # matter if the titles iterator is longer than the actual number of
