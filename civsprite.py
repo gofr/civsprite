@@ -5,14 +5,12 @@ import sys
 
 import sprite.format.spr
 import sprite.format.txt
-import sprite.format.xml
 
 
 def _input_format(name):
     input_formats = {
         'spr': sprite.format.spr.load,
-        'txt': sprite.format.txt.load,
-        'xml': sprite.format.xml.load
+        'txt': sprite.format.txt.load
     }
     split_name = name.rsplit('.', 1)
     if split_name[-1] not in input_formats:
@@ -28,8 +26,7 @@ def _input_format(name):
 def _output_format(name):
     output_formats = {
         'spr': sprite.format.spr.save,
-        'txt': sprite.format.txt.save,
-        'xml': sprite.format.xml.save
+        'txt': sprite.format.txt.save
     }
     split_name = name.rsplit('.', 1)
     if split_name[-1] not in output_formats:
@@ -57,15 +54,14 @@ if __name__ == '__main__':
 For example:
 
 * The following command would parse the Original game's static sprite file and
-  convert it into an XML description file plus all images saved as PNG images:
+  convert it into a text description file plus all images saved as PNG images:
 
-{sys.argv[0]} "C:\Somewhere\Test of Time\Original\Static.spr" static.xml
+{sys.argv[0]} "C:\Somewhere\Test of Time\Original\Static.spr" static.txt
 
-* The following command would do the opposite. It would parse a static.xml file
-  and using all the images it references create a new Static.spr, overwriting
-  any existing file:
+* The following command would do the opposite. It would parse a static.txt file
+  and using all the images it references create a new Static.spr:
 
-{sys.argv[0]} static.xml "C:\Somewhere\Test of Time\Original\Static.spr"
+{sys.argv[0]} static.txt "C:\Somewhere\Test of Time\Original\Static.spr"
 """)
     parser.add_argument(
         'input', type=_input_format,
