@@ -142,11 +142,11 @@ class Sprite(object):
         return (i for i, img in enumerate(self.images) if test(img))
 
     def save_as_pngs(self, images_dir, borders=True):
-        """Save images in sprite as PNGs and return list of ImageDetails
+        """Save images to new dir as PNGs and return list of ImageDetails
 
+        The images directory must not yet exist.
         The returned list corresponds exactly to the list in self.images.
         """
-        # TODO: User-friendly error-handling and possibility to override:
         os.makedirs(images_dir)
 
         saved_details = [None] * len(self.images)
