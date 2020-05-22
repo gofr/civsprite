@@ -47,8 +47,8 @@ FRAMES_HELP = f"""\
 ;
 ;   image        = The image (from {IMAGES_HEADER}) to use for this frame,
 ;                  referenced by its index number. The first image has index 0.
-;                  This can't be higher than 1023, so only a total of 1024
-;                  images can be used in all animations in a single file.
+;                  At most {Sprite.MAX_IMAGES} images in total can be used by
+;                  animation frames.
 ;
 ;   transparency = A value 0 to 7, where 0 is fully opaque and 7 is 7/8
 ;                  transparent. Only units can have transparency.

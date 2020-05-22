@@ -181,11 +181,6 @@ def load(path):
         image_index = list(struct.unpack('<{}l'.format(image_index_size // 4),
                                          spr_file.read(image_index_size)))
 
-        if animation_offset:
-            # TODO: What to do? Should this succeed but warn, since not all
-            # images can be used, or just use the first 1024?
-            assert len(image_index) <= 1024
-
         image_sources = []
         image_offset_map = {}
         while True:

@@ -77,6 +77,8 @@ class SpriteType(enum.Enum):
 
 
 class Sprite(object):
+    MAX_IMAGES = 1024
+
     def __init__(self, images, frames=None, animation_index=None):
         """Create a Sprite object.
 
@@ -101,6 +103,10 @@ class Sprite(object):
         self.has_animations = bool(self.frames)
 
         if self.has_animations:
+            if len(self.images) > Sprite.MAX_IMAGES:
+                raise ValueError(
+                    f'Animation frames can use at most {Sprite.MAX_IMAGES}'
+                    f' images. Found {len(self.images)} images.')
             if len(self.animation_index) == 32:
                 self.type = SpriteType.UNIT
             else:
