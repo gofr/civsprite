@@ -147,20 +147,6 @@ def _parse_image_details(values, root_dir):
     return ImageDetails(**image)
 
 
-def _load_image(details):
-    """Return PIL Image object from ImageDetails object"""
-    source = Image.open(details.image_path)
-    image = source.crop(details.image_box)
-    mask = 0
-    if details.mask_path is not None:
-        if details.mask_path != details.image_path:
-            source = Image.open(details.mask_path)
-        mask = source.crop(details.mask_box).convert('L').point(
-            lambda p: 255 if p else 0, '1')
-    image.putalpha(mask)
-    return image
-
-
 def _parse_frame(values, num_images):
     """Return Frame object from values parsed from frame text line"""
     frame = {}
@@ -263,7 +249,7 @@ def load(path):
                         if image_details in loaded_images:
                             images.append(images[loaded_images[image_details]])
                         else:
-                            images.append(_load_image(image_details))
+                            images.append(image_details.load())
                             loaded_images[image_details] = len(images) - 1
                     elif in_section == Section.FRAMES:
                         frames.append(

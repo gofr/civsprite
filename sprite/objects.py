@@ -52,6 +52,19 @@ class ImageDetails(collections.namedtuple('ImageDetails', [
     def __hash__(self):
         return hash(tuple(self))
 
+    def load(self):
+        """Return PIL Image object from ImageDetails object"""
+        source = Image.open(self.image_path)
+        image = source.crop(self.image_box)
+        mask = 0
+        if self.mask_path is not None:
+            if self.mask_path != self.image_path:
+                source = Image.open(self.mask_path)
+            mask = source.crop(self.mask_box).convert('L').point(
+                lambda p: 255 if p else 0, '1')
+        image.putalpha(mask)
+        return image
+
 
 Frame = collections.namedtuple('Frame', [
     'image', 'transparency',
