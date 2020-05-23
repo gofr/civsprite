@@ -97,23 +97,17 @@ def _parse_image_details(values, root_dir):
     except IndexError:
         raise ValueError('Image misses image path value.')
     index = 1
-    for prop in ('x', 'y', 'width', 'height'):
+    for prop in ('image_x', 'image_y', 'width', 'height'):
         try:
             image[prop] = int(values[index])
             if image[prop] < 0:
-                raise ValueError
+                raise ValueError('value must be a non-negative integer.')
         except IndexError:
             raise ValueError(f'Image misses {prop} value.')
         except ValueError:
             raise ValueError(
-                f'Image has invalid {prop} value. Found "{values[index]}".'
-                f' Expected integer 0 or higher.')
+                f'Image has invalid {prop} value "{values[index]}".')
         index += 1
-    # Turn human-readable names into object property names:
-    image['image_x'] = image['x']
-    image['image_y'] = image['y']
-    del image['x']
-    del image['y']
     try:
         mask_path = values[5]
         if mask_path == '':
@@ -124,26 +118,19 @@ def _parse_image_details(values, root_dir):
     except IndexError:
         pass  # This field is optional.
     index = 6
-    for prop in ('x', 'y'):
+    for prop in ('mask_x', 'mask_y'):
         try:
             image[prop] = int(values[index])
             if image[prop] < 0:
-                raise ValueError
+                raise ValueError('value must be a non-negative integer.')
         except IndexError:
             # The coordinates are only required if there is a mask.
             if image.get('mask_path') is not None:
                 raise ValueError(f'Mask misses {prop} value.')
         except ValueError:
             raise ValueError(
-                f'Mask has invalid {prop} value. Found "{values[index]}".'
-                f' Expected integer 0 or higher.')
+                f'Mask has invalid {prop} value "{values[index]}".')
         index += 1
-    # Turn human-readable names into object property names:
-    if image.get('mask_path'):
-        image['mask_x'] = image['x']
-        image['mask_y'] = image['y']
-        del image['x']
-        del image['y']
     return ImageDetails(**image)
 
 
@@ -153,23 +140,22 @@ def _parse_frame(values, num_images):
     try:
         frame['image'] = int(values[0])
         if frame['image'] < 0 or frame['image'] >= num_images:
-            raise ValueError
+            raise ValueError(
+                f'value must be an integer from 0 to {num_images}.')
     except IndexError:
         raise ValueError('Frame misses image index.')
     except ValueError:
         raise ValueError(
-            f'Frame has invalid image index. Found "{values[0]}".'
-            f' Expected integer from 0 to {num_images}.')
+            f'Frame has invalid image index "{values[0]}".')
     try:
         frame['transparency'] = int(values[1])
         if frame['transparency'] < 0 or frame['transparency'] > 7:
-            raise ValueError
+            raise ValueError('value must be an integer from 0 to 7.')
     except IndexError:
         raise ValueError('Frame misses transparency value.')
     except ValueError:
         raise ValueError(
-            f'Frame has invalid transparency value.'
-            f' Found "{values[1]}". Expected integer from 0 to 7.')
+            f'Frame has invalid transparency value "{values[1]}".')
     index = 2
     for prop in ('start', 'loop', 'mirror', 'end', 'continuous'):
         try:
@@ -178,7 +164,7 @@ def _parse_frame(values, num_images):
             raise ValueError(f'Frame misses {prop} value.')
         except ValueError:
             raise ValueError(
-                f'Frame has invalid {prop} value. Found "{values[index]}".'
+                f'Frame has invalid {prop} value "{values[index]}".'
                 ' Expected 0 or 1.')
         index += 1
     return Frame(**frame)
@@ -189,13 +175,13 @@ def _parse_animation(values, num_frames):
     try:
         anim_index = int(values[0])
         if anim_index < 0 or anim_index >= num_frames:
-            raise ValueError
+            raise ValueError(
+                f'value must be an integer from 0 to {num_frames - 1}.')
     except IndexError:
         raise ValueError(f'Animation misses frame index value.')
     except ValueError:
         raise ValueError(
-            f'Animation has invalid frame index. Found "{values[0]}".'
-            f' Expected an integer from 0 to {num_frames - 1}.')
+            f'Animation has invalid frame index "{values[0]}".')
     return anim_index
 
 
@@ -258,7 +244,8 @@ def load(path):
                         animations.append(
                             _parse_animation(values, len(frames)))
             except ValueError as e:
-                sys.exit(f'Error while loading {path}, line {line_no}:\n{e}')
+                raise ValueError(
+                    f'Error while loading {path}, line {line_no}') from e
     return Sprite(images, frames, animations)
 
 

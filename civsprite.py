@@ -73,8 +73,21 @@ For example:
         'output', type=_output_format,
         help='path to the output file, e.g. a new .spr file to create')
     parser.add_argument(
+        '--debug', action='store_true',
+        help='print the full stack trace(s) if something goes wrong')
+    parser.add_argument(
         '--with-border', action='store_true',
         help='add a single pixel, green border around every image')
     args = parser.parse_args()
 
-    convert(args.input, args.output)
+    try:
+        convert(args.input, args.output)
+    except Exception as e:
+        if args.debug:
+            raise
+        else:
+            message = ''
+            while e:
+                message += f'{e}\n  '
+                e = e.__cause__ or e.__context__
+            sys.exit(message)

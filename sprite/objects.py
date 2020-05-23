@@ -107,7 +107,8 @@ class Sprite(object):
         """
 
         if bool(frames) != bool(animation_index):
-            raise ValueError()
+            raise ValueError(
+                'Both frames and animations must be set for animated sprites')
 
         self.images = images
         self.frames = frames
