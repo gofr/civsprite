@@ -47,28 +47,49 @@ def _output_format(name):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description=(
-            'Convert between Test of Time sprite files and other formats.'),
-        epilog=f"""\
---
-For example:
+        # TODO: Don't hard-code the supported formats in here.
+        # I should do the support of formats differently altogether. But unless
+        # someone else starts contributing, I'm not likely to actually need
+        #  anything more than what I have now either...
+        description=f"""\
+CivSprite {__version__}
 
-* The following command would parse the Original game's static sprite file and
-  convert it into a text description file plus all images saved as PNG images:
+Convert between Test of Time sprite files and other formats.
+
+The only formats currently supported are:
+* Test of Time sprite files (*.spr)
+* text files with images (*.txt)
+* JSON files with images (*.json)
+
+Both the text and JSON output format produce their images in the same way.
+A directory is created with the same base name as the output file with all
+images created inside there using the PNG format.
+
+Even though it only creates PNGs, other image file formats such as BMP are also
+supported as input.
+
+The generated text files look similar to Civilization II's own text files, like
+Rules.txt, and contain further instructions.""",
+        epilog=r"""
+Examples:
+
+Convert the Original game's static sprite file to a text file called
+"static.txt" plus a directory next to it called "static" that contains PNG
+images containing all the static sprites:
 
 %(prog)s "C:\Somewhere\Test of Time\Original\Static.spr" static.txt
 
-* The following command would do the opposite. It would parse a static.txt file
-  and using all the images it references create a new Static.spr:
+Convert a text file called "unit99.txt" along with all the PNG images it
+references into a Test of Time sprite file:
 
-%(prog)s static.txt "C:\Somewhere\Test of Time\Original\Static.spr"
+%(prog)s unit99.txt "C:\Somewhere\Test of Time\Original\Unit99.spr"
 """)
     parser.add_argument(
         'input', type=_input_format,
-        help='path to the input file, e.g. a .spr file you want to edit')
+        help='path to the input file')
     parser.add_argument(
         'output', type=_output_format,
-        help='path to the output file, e.g. a new .spr file to create')
+        help='path to the output file')
     parser.add_argument(
         '--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument(
