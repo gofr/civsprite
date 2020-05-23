@@ -1,5 +1,7 @@
 #!/usr/bin/env python3.8
 
+__version__ = '2.0.0'
+
 import argparse
 import sys
 
@@ -67,6 +69,8 @@ For example:
     parser.add_argument(
         'output', type=_output_format,
         help='path to the output file, e.g. a new .spr file to create')
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {__version__}')
     parser.add_argument(
         '--debug', action='store_true',
         help='print the full stack trace(s) if something goes wrong')
