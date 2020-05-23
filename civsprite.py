@@ -22,7 +22,7 @@ def _input_format(name):
             'Only the following extensions are supported:\n'
             + format_string)
     else:
-        return input_formats[split_name[-1]], name
+        return lambda: input_formats[split_name[-1]](name)
 
 
 def _output_format(name):
@@ -39,12 +39,7 @@ def _output_format(name):
             'Only the following extensions are supported:\n'
             + format_string)
     else:
-        return output_formats[split_name[-1]], name
-
-
-def convert(input, output):
-    data = input[0](input[1])
-    output[0](data, output[1])
+        return lambda data: output_formats[split_name[-1]](data, name)
 
 
 if __name__ == '__main__':
@@ -81,7 +76,7 @@ For example:
     args = parser.parse_args()
 
     try:
-        convert(args.input, args.output)
+        args.output(args.input())
     except Exception as e:
         if args.debug:
             raise
