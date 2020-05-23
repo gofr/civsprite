@@ -1,6 +1,27 @@
 import json
 import os
 
+from sprite.objects import Frame, ImageDetails, Sprite
+
+
+def load(path):
+    with open(path, 'rt') as f:
+        sprite = json.load(f)
+    images = []
+    for n, img in enumerate(sprite['images']):
+        # Don't load the same image twice:
+        first_occurrence = sprite['images'].index(img)
+        if first_occurrence == n:
+            images.append(ImageDetails(**img).load())
+        else:
+            images.append(images[first_occurrence])
+    frames = sprite.get('frames')
+    animations = None
+    if frames:
+        frames = [Frame(**f) for f in frames]
+        animations = sprite['animations']
+    return Sprite(images, frames, animations)
+
 
 def save(sprite, path):
     """Save Sprite object 'sprite' to .json file 'path'"""

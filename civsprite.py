@@ -10,6 +10,7 @@ import sprite.format.txt
 
 def _input_format(name):
     input_formats = {
+        'json': sprite.format.json.load,
         'spr': sprite.format.spr.load,
         'txt': sprite.format.txt.load
     }
