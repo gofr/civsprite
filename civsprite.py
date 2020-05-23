@@ -70,9 +70,6 @@ For example:
     parser.add_argument(
         '--debug', action='store_true',
         help='print the full stack trace(s) if something goes wrong')
-    parser.add_argument(
-        '--with-border', action='store_true',
-        help='add a single pixel, green border around every image')
     args = parser.parse_args()
 
     try:
