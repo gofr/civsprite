@@ -287,12 +287,12 @@ def save(sprite, path):
     with open(path, 'xt') as f:
         try:
             img_list = sprite.save_as_pngs(os.path.splitext(path)[0])
-        except FileExistsError:
+        except FileExistsError as e:
             # But if creating the image directory failed, we have no use for
             # the text file anymore either:
             f.close()
             os.remove(f.name)
-            raise
+            raise FileExistsError('Image directory already exists.') from e
         f.write(_get_images_text(sprite, img_list, os.path.dirname(path)))
         if sprite.has_animations:
             f.write('\n')
