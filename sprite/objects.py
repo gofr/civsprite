@@ -12,7 +12,7 @@ import collections
 import enum
 import os
 
-from PIL import Image, ImageOps
+from PIL import Image, ImageChops, ImageOps
 
 
 TRANSPARENT = (255, 0, 255, 0)  # Magenta with no civ mask (RGBA)
@@ -60,12 +60,21 @@ class ImageDetails(collections.namedtuple('ImageDetails', [
         """Return PIL Image object from ImageDetails object"""
         source = Image.open(self.image_path)
         image = source.crop(self.image_box)
+        # Treat the color of the top-left pixel as transparent too, since ToT
+        # does that for its bitmaps.
+        extra_transparent = image.getpixel((0, 0))
+        # But only change the image if needed:
+        if extra_transparent != TRANSPARENT[0:3]:
+            extra_fill = Image.new('RGB', image.size, extra_transparent)
+            extra_filter = ImageChops.difference(
+                image, extra_fill).convert('L').point(lambda p: not p, '1')
+            image.paste(TRANSPARENT, mask=extra_filter)
         mask = 0
         if self.mask_path is not None:
             if self.mask_path != self.image_path:
                 source = Image.open(self.mask_path)
             mask = source.crop(self.mask_box).convert('L').point(
-                lambda p: 255 if p else 0, '1')
+                lambda p: p, '1')
         image.putalpha(mask)
         return image
 
