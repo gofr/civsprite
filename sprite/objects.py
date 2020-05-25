@@ -15,6 +15,10 @@ import os
 from PIL import Image, ImageOps
 
 
+TRANSPARENT = (255, 0, 255, 0)  # Magenta with no civ mask (RGBA)
+BORDER_COLOR = (0, 255, 0, 0)
+
+
 class ImageDetails(collections.namedtuple('ImageDetails', [
         'image_path', 'image_x', 'image_y', 'width', 'height',
         'mask_path', 'mask_x', 'mask_y', 'image_box', 'mask_box'])):
@@ -229,8 +233,6 @@ def save_images_to_file(images, path, borders=True):
 
     The items in the returned list correspond to the images passed in.
     """
-    background = (255, 0, 255)
-    border_color = (0, 255, 0)
     all_image_details = []
     if not images:
         return all_image_details
@@ -244,7 +246,7 @@ def save_images_to_file(images, path, borders=True):
     total_height = max_height + 2 * int(borders)
     if any_masks:
         total_height += max_height + int(borders)
-    total_image = Image.new('RGB', (total_width, total_height), background)
+    total_image = Image.new('RGB', (total_width, total_height), TRANSPARENT)
     left = 0
     for img in images:
         current_mask = None
@@ -253,10 +255,10 @@ def save_images_to_file(images, path, borders=True):
             current_mask.putdata(img.getdata(3))
             if borders:
                 current_mask = ImageOps.expand(
-                    current_mask.convert('RGB'), int(borders), border_color)
+                    current_mask.convert('RGB'), int(borders), BORDER_COLOR)
         if borders:
             current_image = ImageOps.expand(
-                img, int(borders), border_color)
+                img, int(borders), BORDER_COLOR)
         else:
             current_image = img
         image_box = (left, 0, left + current_image.width, current_image.height)

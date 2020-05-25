@@ -82,8 +82,7 @@ def _image_object_to_sprite_image(image):
     The alpha channel is used for the civilization color mask (0=no, 255=yes).
     """
 
-    transparent = (255, 0, 255, 0)  # magenta without color mask
-    blank_image = Image.new('RGB', image.size, transparent)
+    blank_image = Image.new('RGB', image.size, sprite.objects.TRANSPARENT)
     bounding_box = \
         ImageChops.difference(image.convert('RGB'), blank_image).getbbox()
     (bbox_left, bbox_top, bbox_right, bbox_bottom) = \
@@ -98,7 +97,8 @@ def _image_object_to_sprite_image(image):
             row = bbox_data[n:n + bbox_width]
             # Skip leading transparent pixels
             first_pixel = 0
-            while first_pixel < bbox_width and row[first_pixel] == transparent:
+            while (first_pixel < bbox_width and
+                    row[first_pixel] == sprite.objects.TRANSPARENT):
                 first_pixel += 1
 
             empty_bytes = 0
@@ -107,7 +107,7 @@ def _image_object_to_sprite_image(image):
                 # Skip trailing transparent pixels
                 last_pixel = bbox_width - 1
                 while (last_pixel > first_pixel and
-                        row[last_pixel] == transparent):
+                        row[last_pixel] == sprite.objects.TRANSPARENT):
                     last_pixel -= 1
                 empty_bytes = bbox_left + first_pixel
                 row_data = [
