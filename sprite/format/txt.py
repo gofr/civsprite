@@ -7,9 +7,6 @@ itself uses.
 import enum
 import itertools
 import os
-import sys
-
-from PIL import Image
 
 from sprite.objects import ImageDetails, Frame, Sprite, SpriteType
 
@@ -187,7 +184,7 @@ def _parse_animation(values, num_frames):
             raise ValueError(
                 f'value must be an integer from 0 to {num_frames - 1}.')
     except IndexError:
-        raise ValueError(f'Animation misses frame index value.')
+        raise ValueError('Animation misses frame index value.')
     except ValueError:
         raise ValueError(
             f'Animation has invalid frame index "{values[0]}".')
