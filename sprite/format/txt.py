@@ -35,6 +35,10 @@ IMAGES_HELP = """\
 ; If you don't use a mask, you can leave out the mask path and its x and y
 ; coordinates. If the mask path is empty (whitespace only), it will use the
 ; same file path as that of the image.
+;
+; In case of the static unit sprites, if you added extra unit types with TOTPP,
+; you need to set its NumberOfStaticUnitSprites @COSMIC2 key to see the extra
+; static sprites you add here. See TOTPP for more information.
 ;"""
 
 FRAMES_HEADER = '@FRAMES'
@@ -81,10 +85,15 @@ ANIMATIONS_HELP = f"""\
 ; All animations must be listed here. That's:
 ; 8 directions x 4 actions = 32 for a unit
 ; 4 maps x 2 resources x 11 terrain types* = 88 for resources
-; *) More terrain types are possible with ToTPP and are also supported here.
+; *) More terrain types are possible with TOTPP and are also supported here,
+;    as long as its @COSMIC2 key NumberOfAnimatedResources is set.
 ;
 ; If you don't need an animation for any of these, use an empty, single end
 ; frame animation.
+;
+; If you added extra unit types with TOTPP, animated sprite files for the extra
+; units will only be used if you set the NumberOfAnimatedUnitSprites key in
+; @COSMIC2. See TOTPP for more information.
 ;"""
 
 
